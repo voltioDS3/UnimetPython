@@ -94,12 +94,32 @@ class AddTaskFrame(tk.Frame):
         dxfButtonLabel.grid(column=0, row=10)
 
     def getFormEntries(self):
+        dataDictionary = {"jobName" : "x",
+        "descripcion" : "x",
+        "date" : "x",
+        "file" : "x"} 
+        
+        dataDictionary["jobName"] = self.nameEntrie.get()
+        dataDictionary["descripcion"] = self.descriptionEntrie.get("1.0",END)
+        dataDictionary["date"] = self.cal.get()
+        
+        if self.dxfFileName != "x":
+            dataDictionary["file"] = self.dxfFileName
+
+        self.dxfFileName = 'x'
+        self.jobName = 'x'
+        self.description = 'x'
+        self.date = 'x'
+        
+        print(dataDictionary)
+
         pass
 if __name__ == "__main__":
     root = tk.Tk()
     root['background'] = "#393E46"
     root.geometry("1366x769")
     root.update_idletasks()
+    root.title("UnimetApp")
     root.resizable(False,False)
     main = MainApplication(root,  background= '#393E46')
     
