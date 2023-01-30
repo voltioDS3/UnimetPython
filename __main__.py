@@ -18,7 +18,7 @@ class App(tk.Tk):
         self.geometry("1366x769")
         self.title('Trabajos')
         self['background'] = "#393E46"
-
+        self.dxfFileName = 'x'
         self.image = Image.open("./images/addButton.png").convert('RGBA')
       
         self.img = self.image.resize((75,75))
