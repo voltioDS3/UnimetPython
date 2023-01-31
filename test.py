@@ -7,6 +7,7 @@ from PIL import Image, ImageTk
 from tkcalendar import DateEntry
 import os
 import pyglet
+import json
 pyglet.font.add_file('./fonts/Roboto-Black.ttf')
 pyglet.font.add_file('./fonts/Roboto-BlackItalic.ttf')
 pyglet.font.add_file('./fonts/Roboto-Bold.ttf')
@@ -29,15 +30,80 @@ class PendingTaskFrame(tk.Frame):
 
     def __init__(self, parent, parent_height):
         tk.Frame.__init__(self, parent, width=1000, height=parent_height, background= '#393E46')
+        
+        self.grid_propagate(0)
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_columnconfigure(0, weight=1)
 
+        self.canvas = tk.Canvas(self, background="#393E46")
+        self.verticalScrollbar = Scrollbar(self, orient='vertical', command=self.canvas.yview)
+        self.scrollFrame = tk.Frame(self.canvas, background="#393E46")
+        self.scrollFrame.bind(
+    "<Configure>",
+    lambda e: self.canvas.configure(
+        scrollregion=self.canvas.bbox("all")
+    )
+)       
+        self.canvas.create_window((0, 0), window=self.scrollFrame, anchor="nw")
+        self.canvas.configure(yscrollcommand=self.verticalScrollbar.set)
+        self.canvas.bind_all("<MouseWheel>", self._on_mousewheel)
+        self.canvas.grid(column=0,row=0, sticky="nsew")
 
+        self.verticalScrollbar.grid(row=0,column=1, sticky="nsew")
+        self.searchForJobs()
 
+    def _on_mousewheel(self, event):
+        self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+
+    def searchForJobs(self):
+        self.references = []
+        
+        pendinFiles = os.scandir('./draws')
+        initialRow = 0
+        initialColumn = 0
+        for file in pendinFiles:
+            print(self.winfo_width)
+            container = Frame(self.scrollFrame, width=300, background= '#243763', height=300)
+            container.grid_propagate(0)
+            container.grid_rowconfigure(0, weight=0)
+            container.grid_columnconfigure(0, weight=0)
+            container.grid(column=initialColumn, row=initialRow, sticky='news', pady=10, padx=10)
+            
+            f = open(file)
+            data = json.load(f)
+            jobLabel = Label(container,text=data['jobName'], font=('Roboto Bold',20), background="#FF6E31", fg='white', justify=CENTER, wraplength=300)
+            jobLabel.grid(column=0, row=0)
+
+            descLabel = Label(container,text=f'D:{data["descripcion"]}', font=('Roboto Bold',20), background="#243763", fg='white', wraplength=300, justify=LEFT)
+            descLabel.grid(column=0, row=1, sticky='w')
+            
+            dateLabel = Label(container,text=f"F:{data['date']}", font=('Roboto Bold',20), background="#243763", fg='white')
+            dateLabel.grid(column=0, row=2, sticky='w')
+
+            if data['file'] == 'x':
+                fileLabel = Label(container,text='A:No archivo', font=('Roboto Bold',20), background="#243763", fg='white')
+                fileLabel.grid(column=0, row=3, sticky='w')
+            else:
+                fileLabel = Label(container,text=f"A:{data['file'].split('/')[-1]}", font=('Roboto Bold',20), background="#243763", fg='white')
+                fileLabel.grid(column=0, row=3, sticky='w')
+            if initialColumn <= 1:
+                initialColumn += 1
+            else:
+                initialRow += 1
+                initialColumn = 0
+            f = open(file)
+            data = json.load(f)
+
+            
+        pass
 class AddTaskFrame(tk.Frame):
     
     def __init__(self, parent, parent_height, parent_width):
-        tk.Frame.__init__(self, parent, width=parent_width-1000, height=parent_height, background= '#1F8A70')
+        tk.Frame.__init__(self, parent, width=366, height=parent_height, background= '#1F8A70')
+        
         self.grid_propagate(0)
-
+        # self.grid_rowconfigure(0, weight=1)
+        # self.grid_columnconfigure(0, weight=1)
         ###  form variables ###
         self.dxfFileName = 'x'
         self.jobName = 'x'
@@ -65,12 +131,20 @@ class AddTaskFrame(tk.Frame):
         ###  Upload File section ###
         self.fileLabel = Label(self, text='Archivo', font=('Roboto Bold',20), background="#1F8A70", fg='white')
         self.fileLabel.grid(column=0,row=6, sticky='w', padx=10, pady=10)
+
         self.fileButton = Button(self, text='Abrir archivo', width=20,command=lambda:self.uploadFile())
         self.fileButton.grid(column=0, row=7)
+
+        self.closeFile = Button(self, text='X', command=lambda:self.removeDxf())
+        self.closeFile.grid(column=0, row=8)
 
         ###  Submit Button section ###
         self.submitButton = Button(self, text='Subir Trabajo', font=('Roboto Bold',12), width=20, height=2, command= lambda:self.getFormEntries())
         self.submitButton.grid(column=0,row=11, pady=10)
+
+    def removeDxf(self):
+        self.dxfButton.grid_remove()
+        self.dxfButtonLabel.grid_remove()
 
     def uploadFile(self):
         fileTypes = [('dxf Files','*dxf')]
@@ -78,20 +152,19 @@ class AddTaskFrame(tk.Frame):
         self.dxfFileName = filename
         print(filename)
         
-
-        dxfButtonImage = ImageTk.PhotoImage(Image.open('./images/dxf.png').resize((100,100)))
-
-        dxfButton = Button(self, image=dxfButtonImage, background= '#1F8A70', borderwidth=0,  activebackground='#1F8A70', command= lambda : os.startfile(filename))
-        dxfButton.photo = dxfButtonImage
+        if 'dxf' in filename:
+            self.dxfButtonImage = ImageTk.PhotoImage(Image.open('./images/dxf.png').resize((100,100)))
+            self.dxfButton = Button(self, image=self.dxfButtonImage, background= '#1F8A70', borderwidth=0,  activebackground='#1F8A70', command= lambda : os.startfile(filename))
+            self.dxfButton.photo = self.dxfButtonImage
         
-        
+
         # dxfButtonLabel.grid(column=0,row=9)
-        dxfButton.grid(column=0, row=9, pady=10)
+            self.dxfButton.grid(column=0, row=9, pady=10)
 
-        name = filename.split('/')[-1]
-        print(name)
-        dxfButtonLabel = Label(self,text=name, background='#1F8A70', font=('Roboto Bold',10))
-        dxfButtonLabel.grid(column=0, row=10)
+            name = filename.split('/')[-1]
+            print(name)
+            self.dxfButtonLabel = Label(self,text=name, background='#1F8A70', font=('Roboto Bold',10))
+            self.dxfButtonLabel.grid(column=0, row=10)
 
     def getFormEntries(self):
         dataDictionary = {"jobName" : "x",
@@ -100,37 +173,54 @@ class AddTaskFrame(tk.Frame):
         "file" : "x"} 
         
         dataDictionary["jobName"] = self.nameEntrie.get()
-        dataDictionary["descripcion"] = self.descriptionEntrie.get("1.0",END)
+        dataDictionary["descripcion"] = self.descriptionEntrie.get("1.0",END)[0:-2]
         dataDictionary["date"] = self.cal.get()
         
         if self.dxfFileName != "x":
             dataDictionary["file"] = self.dxfFileName
+            self.removeDxf()
 
         self.dxfFileName = 'x'
         self.jobName = 'x'
         self.description = 'x'
         self.date = 'x'
+        self.nameEntrie.delete(0,END)
+        self.descriptionEntrie.delete("1.0",END)
         
+        with open(f'./draws/{dataDictionary["jobName"]}.json', 'w') as outputFile:
+            json.dump(dataDictionary, outputFile) 
+            print('file created succesfuly')
         print(dataDictionary)
-
+        updateJobs()
+        dataDictionary = dict.fromkeys(dataDictionary, 0)
+        pendinFiles = os.scandir('./draws')
+        for file in pendinFiles:
+            print(file)
+        print(pendinFiles)
+        print(dataDictionary)
         pass
+
+def updateJobs():
+    left.searchForJobs()
 if __name__ == "__main__":
     root = tk.Tk()
     root['background'] = "#393E46"
     root.geometry("1366x769")
     root.update_idletasks()
+    # root.grid_rowconfigure(0, weight=1)
+    # root.columnconfigure(0, weight=1)
     root.title("UnimetApp")
     root.resizable(False,False)
     main = MainApplication(root,  background= '#393E46')
     
-    main.pack(side="top", fill="both", expand=True)
-    print(main.winfo_width())
+    # main.pack(side="top", fill="both", expand=True)
+    # print(main.winfo_width())
 
     left = PendingTaskFrame(root, root.winfo_height())
-    left.pack(side='left')
+    left.grid(column=0,row=0, sticky="nsew")
 
     right = AddTaskFrame(root, root.winfo_height(), root.winfo_width())
-    right.pack(side='right')
+    right.grid(column=1,row=0, sticky="nsew")
     print(left.winfo_width())
     print(root.winfo_width())
     print(root.winfo_height())
