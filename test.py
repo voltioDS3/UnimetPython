@@ -8,6 +8,7 @@ from tkcalendar import DateEntry
 import os
 import pyglet
 import json
+import datetime
 pyglet.font.add_file('./fonts/Roboto-Black.ttf')
 pyglet.font.add_file('./fonts/Roboto-BlackItalic.ttf')
 pyglet.font.add_file('./fonts/Roboto-Bold.ttf')
@@ -95,8 +96,28 @@ class PendingTaskFrame(tk.Frame):
             f = open(file)
             data = json.load(f)
 
-        print(self.references[1].winfo_children()[2].cget('text').split(':')[1]) 
-        pass
+        # print(self.references[1].winfo_children()[2].cget('text').split(':')[1]) 
+        self.sortJobs()
+        
+    
+    def sortJobs(self):
+        
+        self.references.sort(key= lambda x: datetime.datetime.strptime(x.winfo_children()[2].cget('text').split(':')[1], '%d/%m/%y'))
+        print(f'IMPORTANTE {self.references}')
+        initialRow = 0
+        initialColumn = 0
+        for job in self.references:
+            currentDate = job.winfo_children()[2].cget('text').split(':')[1]
+            job.grid(column=initialColumn, row=initialRow, sticky='news', pady=10, padx=10)
+
+            if initialColumn <= 1:
+                initialColumn += 1
+            else:
+                initialRow += 1
+                initialColumn = 0
+
+            # print(currentDate)
+
 class AddTaskFrame(tk.Frame):
     
     def __init__(self, parent, parent_height, parent_width):
