@@ -67,7 +67,7 @@ class PendingTaskFrame(tk.Frame):
             container.grid_propagate(0)
             container.grid_rowconfigure(0, weight=0)
             container.grid_columnconfigure(0, weight=0)
-            container.grid(column=initialColumn, row=initialRow, sticky='news', pady=10, padx=10)
+            # container.grid(column=initialColumn, row=initialRow, sticky='news', pady=10, padx=10)
             
             f = open(file)
             data = json.load(f)
@@ -91,10 +91,11 @@ class PendingTaskFrame(tk.Frame):
             else:
                 initialRow += 1
                 initialColumn = 0
+            self.references.append(container)
             f = open(file)
             data = json.load(f)
 
-            
+        print(self.references[1].winfo_children()[2].cget('text').split(':')[1]) 
         pass
 class AddTaskFrame(tk.Frame):
     
