@@ -219,18 +219,42 @@ class AddTaskFrame(tk.Frame):
         
         with open(f'./draws/{dataDictionary["jobName"]}.json', 'w') as outputFile:
             json.dump(dataDictionary, outputFile)
-            SEPARATOR = "<SEPARATOR>"
-            BUFFER_SIZE = 4096
-            host = ''
-            port = 4444
-            s = socket.socket()
-            # s.connect((host,port))
+            
 
             print('file created succesfuly')
+        
+        ### SEND FILE VIA FTP ###
+
+        SEPARATOR = "<SEPARATOR>"
+        BUFFER_SIZE = 4096
+        host = ''
+        port = 4444
+            
+        s = socket.socket()
+        try:
+            print(f'now trying to connect to {host}')
+            s.connect((host,port))
+            print('done conecting')
+            filesize = os.path.getsize(f'./draws/{dataDictionary["jobName"]}.json')
+            s.send(f"./draws/{dataDictionary['jobName']}.json{SEPARATOR}{filesize}".encode())
+            with open(f'./draws/{dataDictionary["jobName"]}.json', 'rb') as f:
+                while True:
+                    bytes_read = f.read(BUFFER_SIZE)
+                    if not bytes_read:
+                        break
+
+                    s.sendall(bytes_read)
+
+            if dataDictionary['file'] == 'x':
+                s.close()
+            else:
+                pass
+        except Exception:
+            print('something went bad with socket')
         print(dataDictionary)
         updateJobs(self.left)
         dataDictionary = dict.fromkeys(dataDictionary, 0)
-
+        
         pendinFiles = os.scandir('./draws')
         for file in pendinFiles:
             print(file)
