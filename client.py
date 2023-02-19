@@ -9,8 +9,10 @@ import os
 import pyglet
 import json
 import datetime
-import asyncio
+import multiprocessing
+from multiprocessing import Process
 import socket
+import time
 pyglet.font.add_file('./fonts/Roboto-Black.ttf')
 pyglet.font.add_file('./fonts/Roboto-BlackItalic.ttf')
 pyglet.font.add_file('./fonts/Roboto-Bold.ttf')
@@ -126,9 +128,9 @@ class PendingTaskFrame(tk.Frame):
 
 class AddTaskFrame(tk.Frame):
     
-    def __init__(self, parent, parent_height, parent_width):
+    def __init__(self, parent, parent_height, parent_width, left_frame):
         tk.Frame.__init__(self, parent, width=366, height=parent_height, background= '#1F8A70')
-        
+        self.left = left_frame
         self.grid_propagate(0)
         # self.grid_rowconfigure(0, weight=1)
         # self.grid_columnconfigure(0, weight=1)
@@ -217,18 +219,42 @@ class AddTaskFrame(tk.Frame):
         
         with open(f'./draws/{dataDictionary["jobName"]}.json', 'w') as outputFile:
             json.dump(dataDictionary, outputFile)
-            SEPARATOR = "<SEPARATOR>"
-            BUFFER_SIZE = 4096
-            host = ''
-            port = 4444
-            s = socket.socket()
-            # s.connect((host,port))
+            
 
             print('file created succesfuly')
-        print(dataDictionary)
-        updateJobs()
-        dataDictionary = dict.fromkeys(dataDictionary, 0)
+        
+        ### SEND FILE VIA FTP ###
 
+        SEPARATOR = "<SEPARATOR>"
+        BUFFER_SIZE = 4096
+        host = ''
+        port = 4444
+            
+        s = socket.socket()
+        try:
+            print(f'now trying to connect to {host}')
+            s.connect((host,port))
+            print('done conecting')
+            filesize = os.path.getsize(f'./draws/{dataDictionary["jobName"]}.json')
+            s.send(f"./draws/{dataDictionary['jobName']}.json{SEPARATOR}{filesize}".encode())
+            with open(f'./draws/{dataDictionary["jobName"]}.json', 'rb') as f:
+                while True:
+                    bytes_read = f.read(BUFFER_SIZE)
+                    if not bytes_read:
+                        break
+
+                    s.sendall(bytes_read)
+
+            if dataDictionary['file'] == 'x':
+                s.close()
+            else:
+                pass
+        except Exception:
+            print('something went bad with socket')
+        print(dataDictionary)
+        updateJobs(self.left)
+        dataDictionary = dict.fromkeys(dataDictionary, 0)
+        
         pendinFiles = os.scandir('./draws')
         for file in pendinFiles:
             print(file)
@@ -236,9 +262,9 @@ class AddTaskFrame(tk.Frame):
         print(dataDictionary)
         pass
 
-def updateJobs():
-    left.searchForJobs()
-if __name__ == "__main__":
+
+
+def initRoot():
     root = tk.Tk()
     root['background'] = "#393E46"
     root.geometry("1366x769")
@@ -247,17 +273,29 @@ if __name__ == "__main__":
     # root.columnconfigure(0, weight=1)
     root.title("UnimetApp")
     root.resizable(False,False)
-    main = MainApplication(root,  background= '#393E46')
+    # main = MainApplication(root,  background= '#393E46')
     
     # main.pack(side="top", fill="both", expand=True)
     # print(main.winfo_width())
-
+    
     left = PendingTaskFrame(root, root.winfo_height())
     left.grid(column=0,row=0, sticky="nsew")
 
-    right = AddTaskFrame(root, root.winfo_height(), root.winfo_width())
+    right = AddTaskFrame(root, root.winfo_height(), root.winfo_width(), left)
     right.grid(column=1,row=0, sticky="nsew")
     print(left.winfo_width())
     print(root.winfo_width())
     print(root.winfo_height())
     root.mainloop()
+
+def updateJobs(left):
+    left.searchForJobs()
+def sendFiles():
+    while True:
+        print('strat sening')
+        time.sleep(2)
+        print('sfdj sengind')
+    
+if __name__ == "__main__":
+    Process(target=initRoot).start()
+    Process(target=sendFiles).start()
