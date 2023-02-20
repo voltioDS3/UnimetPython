@@ -44,18 +44,29 @@ class ClientSocketHadler():
             print("[!] Could not connect to CNC_PC")
         
     def sendTasks(self, jsonFile, dxfFile = 'x'):
-        try:
+        # try:
             
-            self.s.connect((socket.gethostbyname(self.CNC_PC_NAME), self.CNC_PC_PORT))            
-            print(f"[+] Conected to {socket.gethostbyname(self.CNC_PC_NAME)}")
-        except Exception:
-            print("[!] Could not connect to CNC_PC")
+        #     self.s.connect((socket.gethostbyname(self.CNC_PC_NAME), self.CNC_PC_PORT))            
+        #     print(f"[+] Conected to {socket.gethostbyname(self.CNC_PC_NAME)}")
+        # except Exception:
+        #     print("[!] Could not connect to CNC_PC")
         
         filesList = [jsonFile,dxfFile]
         print(filesList)
+        
+     
+   
         for file in filesList:
+            
             if file == 'x':
                 break
+            try:
+            
+                self.s.connect((socket.gethostbyname(self.CNC_PC_NAME), self.CNC_PC_PORT))            
+                print(f"[+] Conected to {socket.gethostbyname(self.CNC_PC_NAME)}")
+            except Exception:
+                print("[!] Could not connect to CNC_PC")
+
             filesize = os.path.getsize(file)
             self.s.send(f"{file}{self.SEPARATOR}{filesize}".encode())
             with open(file, 'rb') as f:
@@ -65,8 +76,16 @@ class ClientSocketHadler():
                         break  
                     self.s.sendall(bytes_read)
                 print(f'[+] Done sending {file}')
+                # self.s.close()
+            
+            print('trying to send another file')
+            
+            self.s.close()
+            time.sleep(0.5)
+            self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            print('conection ended')
 
-        self.s.close()
+        # self.s.close()
         
                 
 
@@ -193,7 +212,7 @@ class AddTaskFrame(tk.Frame):
         self.description = 'x'
         self.date = 'x'
 
-        ###  Job name section ###
+        ###  Job namgite section ###
         self.nameLabel = Label(self, text='Nombre del trabajo', font=('Roboto Bold',20), background="#1F8A70", fg='white')
         self.nameEntrie = tk.Entry(self, width=37,font=('Roboto Bold',12))
         self.nameEntrie.grid(column=0,row=1, padx=10, pady=10)
@@ -277,8 +296,8 @@ class AddTaskFrame(tk.Frame):
             print('[+] File created succesfuly')
         
         ### SEND FILE VIA FTP ###
-        
-        Process(target=self.clientSocket.sendTasks(dataDictionary['file']))
+        jsonfile = f'./draws/{dataDictionary["jobName"]}.json'
+        Process(target=self.clientSocket.sendTasks(jsonfile, dataDictionary['file']))
        
         print(f'[+] json: {dataDictionary}')
         updateJobs(self.left)
