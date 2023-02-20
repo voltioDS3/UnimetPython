@@ -13,6 +13,7 @@ import multiprocessing
 from multiprocessing import Process
 import socket
 import time
+import threading
 from os import listdir
 from os.path import isfile, join
 pyglet.font.add_file('./fonts/Roboto-Black.ttf')
@@ -30,11 +31,11 @@ class ServerSocketHandler():
     SEPARATOR = '<SEPARATOR>'
     BUFFER_SIZE = 4096
 
-    def __init__(self):
+    def __init__(self, leftFrame):
         self.s = socket.socket()
         # self.leftFrame = leftFrame
         # self.s.bind((self.SERVER_HOST, self.SERVER_PORT))
-
+        self.leftFrame = leftFrame
     def listenForFiles(self):
         
         # print(f'[+] Listening on port {self.SERVER_PORT}')
@@ -71,6 +72,7 @@ class ServerSocketHandler():
                 print(f'[+] Done recieving {filename}')
             client_socket.close()
             self.s.close()
+            self.leftFrame.searchForJobs()
             time.sleep(0.3)
             
             
@@ -320,7 +322,7 @@ class AddTaskFrame(tk.Frame):
         pass
 
 
-server = ServerSocketHandler()
+# server = ServerSocketHandler()
 def initRoot():
     root = tk.Tk()
     root['background'] = "#393E46"
@@ -337,6 +339,9 @@ def initRoot():
     
     left = PendingTaskFrame(root, root.winfo_height())
     left.grid(column=0,row=0, sticky="nsew")
+    server = ServerSocketHandler(left)
+    serverLooop = threading.Thread(target=server.listenForFiles)
+    serverLooop.start()
     # server = ServerSocketHandler(left)
     # Process(target=server.listenForFiles).start()
     right = AddTaskFrame(root, root.winfo_height(), root.winfo_width(), left, server)
@@ -349,10 +354,10 @@ def initRoot():
     # print(root.winfo_width())
     # print(root.winfo_height())
     # Process(target=left.checkFolders).start()
-    Process(root.mainloop()).start()
+    # Process(root.mainloop()).start()
     
 
-    # root.mainloop() 
+    root.mainloop() 
 
 def updateJobs(left):
     left.searchForJobs()
@@ -373,8 +378,10 @@ def detectChanges(fuckingLeft):
             
         time.sleep(3)
 if __name__ == "__main__":
-    Process(target=initRoot).start()
-    Process(target=server.listenForFiles).start()
+    main = threading.Thread(target=initRoot)
+    main.start()
+    # serverLooop = threading.Thread(target=server.listenForFiles)
+    # serverLooop.start()
     
     # Process(target=detectChanges).start()
     # Process(target=sendFiles).start()
