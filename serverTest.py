@@ -23,7 +23,7 @@ pyglet.font.add_file('./fonts/Roboto-BoldItalic.ttf')
 pyglet.font.add_file('./fonts/Roboto-Italic.ttf')
 pyglet.font.add_file('./fonts/Roboto-Regular.ttf')
 
-#tsy
+
 
 class ServerSocketHandler():
     SERVER_HOST = "0.0.0.0"
