@@ -13,7 +13,7 @@ import multiprocessing
 from multiprocessing import Process
 import socket
 import time
-
+import threading
 pyglet.font.add_file('./fonts/Roboto-Black.ttf')
 pyglet.font.add_file('./fonts/Roboto-BlackItalic.ttf')
 pyglet.font.add_file('./fonts/Roboto-Bold.ttf')
@@ -297,7 +297,9 @@ class AddTaskFrame(tk.Frame):
         
         ### SEND FILE VIA FTP ###
         jsonfile = f'./draws/{dataDictionary["jobName"]}.json'
-        Process(target=self.clientSocket.sendTasks(jsonfile, dataDictionary['file']))
+        sendFiles = threading.Thread(target=self.clientSocket.sendTasks(jsonfile,dataDictionary["file"]))
+        sendFiles.start()
+        # Process(target=self.clientSocket.sendTasks(jsonfile, dataDictionary['file']))
        
         print(f'[+] json: {dataDictionary}')
         updateJobs(self.left)
@@ -358,6 +360,8 @@ def sendFiles():
         print('sfdj sengind')
     
 if __name__ == "__main__":
-    Process(target=initRoot).start()
+    main = threading.Thread(target=initRoot)
+    main.start()
+    # Process(target=initRoot).start()
     # Process(target=sendFiles).start()
     # Process(target=conectToServer).start()
