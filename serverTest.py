@@ -1,5 +1,7 @@
 import tkinter as tk
 import tkinter.font
+import subprocess
+from functools import partial
 from tkinter import *
 from tkinter import filedialog
 from tkinter.filedialog import askopenfile
@@ -24,7 +26,7 @@ pyglet.font.add_file('./fonts/Roboto-Italic.ttf')
 pyglet.font.add_file('./fonts/Roboto-Regular.ttf')
 
 
-
+FILEBROWSER_PATH = os.path.join(os.getenv('WINDIR'), 'explorer.exe')
 class ServerSocketHandler():
     SERVER_HOST = "0.0.0.0"
     SERVER_PORT = 4444
@@ -171,7 +173,8 @@ class PendingTaskFrame(tk.Frame):
                 initialRow += 1
                 initialColumn = 0
             
-            infoButton = Button(container, text='Detalles', font=('Roboto Bold',12), width=20, height=2)
+            infoButton = Button(container, text='Detalles', font=('Roboto Bold',12), width=20, height=2, command=partial(
+    self.right.displayTask, self, container))
             infoButton.grid(column=0,row=4)
             self.references.append(container)
             f = open(file)
@@ -199,7 +202,7 @@ class PendingTaskFrame(tk.Frame):
             argumentsToPass = [name,desc,date,file]
             self.referencesToPass.append(argumentsToPass)
             print(self.referencesToPass[taskCount])
-            job.winfo_children()[4].configure(command= lambda: self.right.displayTask(self, name, desc, date,file))
+            # job.winfo_children()[4].configure(command= lambda: self.right.displayTask(self, name, desc, date,file))
             #job.winfo_children()[taskCount].bind("<Button-1>", lambda x: self.right.displayTask(self, *self.referencesToPass[taskCount]))
             taskCount += 1
             if initialColumn <= 1:
@@ -210,142 +213,69 @@ class PendingTaskFrame(tk.Frame):
 
             # print(currentDate)
 
-
+def doNothing():
+    print('doingNothing')
 
 class viewTaskFrame(tk.Frame):
 
     def __init__(self,  parent, parent_height, parent_width):
         tk.Frame.__init__(self, parent, width=366, height=parent_height, background= '#1F8A70')
         self.grid_propagate(0)
+        self.name = Label(self, text='NOMBRE TRABAJO', font=('Roboto Bold',20), background="#FF6E31", fg='white',wraplength=340, justify=LEFT)
+        self.name.grid(column=0,row=0, padx=10)
+
+        self.DESCRIPTION = Label(self, text='DESCRIPCION', font=('Roboto Bold',20), background="#1F8A70", fg='white',wraplength=340, justify=LEFT)
+        self.DESCRIPTION.grid(column=0,row=2)
+
+        self.DATE = Label(self, text='FECHA LIMITE', font=('Roboto Bold',20), background="#1F8A70", fg='white',wraplength=340, justify=LEFT)
+        self.DATE.grid(column=0,row=4)
+
+        self.FILE = Label(self, text='ARCHIVO', font=('Roboto Bold',20), background="#1F8A70", fg='white',wraplength=340, justify=LEFT)
+        self.FILE.grid(column=0,row=6)
+
+        self.nameLabel = Label(self, text=' ', font=('Roboto',20), background="#1F8A70", fg='white',wraplength=340, justify=LEFT)
+        self.nameLabel.grid(column=0,row=1, sticky='w', padx=10)
+
+        self.description = Label(self, text=' ', font=('Roboto',20), background="#1F8A70", fg='white',wraplength=340, justify=LEFT)
+        self.description.grid(column=0,row=3, sticky='w', padx=10)
+        
+        self.date = Label(self, text=' ', font=('Roboto',20), background="#1F8A70", fg='white',wraplength=340, justify=LEFT)
+        self.date.grid(column=0,row=5, sticky='w', padx=10)
+        
+        self.file = Button(self, text=' ', background="#FF6E31", font=('Roboto',20), fg='white',wraplength=340, justify=LEFT)
+        # self.file.grid(column=0,row=7, sticky='w', padx=10)
+
+        self.taskDoneButton = Button(self, text='TERMINAR TRABAJO', command = lambda: ,background="#FF6E31", font=('Roboto',20), fg='white',wraplength=340, justify=LEFT)
+        self.taskDoneButton.grid(column=0,row=9, sticky='w', padx=10, pady=10)
+        
     
-    def displayTask(self,pendingFrame, name, description, date,file):
-        print(name)
-        nameLabel = Label(self, text=name, font=('Roboto Bold',20), background="#1F8A70", fg='white',wraplength=310, justify=LEFT)
-        nameLabel.grid(column=0,row=0, sticky='w', padx=10)
-        pendingFrame.searchForJobs()
-        print(name)
-class AddTaskFrame(tk.Frame):
-    
-    def __init__(self, parent, parent_height, parent_width, left_frame, serverObj):
-        tk.Frame.__init__(self, parent, width=366, height=parent_height, background= '#1F8A70')
-        self.left = left_frame
-        self.grid_propagate(0)
-        self.serverObj = serverObj
-        # self.grid_rowconfigure(0, weight=1)
-        # self.grid_columnconfigure(0, weight=1)
-        ###  form variables ###
-        self.dxfFileName = 'x'
-        self.jobName = 'x'
-        self.description = 'x'
-        self.date = 'x'
-
-        ###  Job name section ###
-        self.nameLabel = Label(self, text='Nombre del trabajo', font=('Roboto Bold',20), background="#1F8A70", fg='white')
-        self.nameEntrie = tk.Entry(self, width=37,font=('Roboto Bold',12))
-        self.nameEntrie.grid(column=0,row=1, padx=10, pady=10)
-        self.nameLabel.grid(column=0,row=0, sticky='w', padx=10)
-
-        ###  Description section ###
-        self.descriptionLabel = Label(self, text='Descripción', font=('Roboto Bold',20), background="#1F8A70", fg='white')
-        self.descriptionEntrie = Text(self, height=10, width=37, font=('Roboto Bold',12))
-        self.descriptionEntrie.grid(column=0, row=3)
-        self.descriptionLabel.grid(column=0,row=2, sticky='w', padx=10, pady=10)
-
-        ###  Date section ###
-        self.dateLabel = Label(self, text='Fecha Limite', font=('Roboto Bold',20), background="#1F8A70", fg='white')
-        self.dateLabel.grid(column=0,row=4, sticky='w', padx=10, pady=10)
-        self.cal = DateEntry(self, selectmode='day', width = 30, locale='es_ES',  font=('Roboto Bold',12))
-        self.cal.grid(column=0, row=5, sticky='w', padx=10)
-
-        ###  Upload File section ###
-        self.fileLabel = Label(self, text='Archivo', font=('Roboto Bold',20), background="#1F8A70", fg='white')
-        self.fileLabel.grid(column=0,row=6, sticky='w', padx=10, pady=10)
-
-        self.fileButton = Button(self, text='Abrir archivo', width=20,command=lambda:self.uploadFile())
-        self.fileButton.grid(column=0, row=7)
-
-        self.closeFile = Button(self, text='X', command=lambda:self.removeDxf())
-        self.closeFile.grid(column=0, row=8)
-
-        ###  Submit Button section ###
-        self.submitButton = Button(self, text='Subir Trabajo', font=('Roboto Bold',12), width=20, height=2, command= lambda:self.getFormEntries())
-        self.submitButton.grid(column=0,row=11, pady=10)
+    def displayTask(self,pendingFrame, container):
         
-    def removeDxf(self):
-        self.dxfButton.grid_remove()
-        self.dxfButtonLabel.grid_remove()
+        name = container.winfo_children()[0].cget('text')
+        desc = container.winfo_children()[1].cget('text')[2:]  # decription of job
+        date = container.winfo_children()[2].cget('text')[2:]  # date
+        file = container.winfo_children()[3].cget('text')[2:] 
+        
+        self.nameLabel.configure(text=name)
+        # self.nameLabel.grid(column=0,row=1, sticky='w', padx=10)
 
-    def uploadFile(self):
-        fileTypes = [('dxf Files','*dxf')]
-        filename = filedialog.askopenfilename(filetypes=fileTypes)
-        self.dxfFileName = filename
-        print(filename)
+        self.description.configure(text=desc)
+        # self.description.grid(column=0,row=3, sticky='w', padx=10)
         
-        if 'dxf' in filename:
-            self.dxfButtonImage = ImageTk.PhotoImage(Image.open('./images/dxf.png').resize((100,100)))
-            self.dxfButton = Button(self, image=self.dxfButtonImage, background= '#1F8A70', borderwidth=0,  activebackground='#1F8A70', command= lambda : os.startfile(filename))
-            self.dxfButton.photo = self.dxfButtonImage
+        self.date.configure(text=date)
+        # self.date.grid(column=0,row=5, sticky='w', padx=10)
         
-
-        # dxfButtonLabel.grid(column=0,row=9)
-            self.dxfButton.grid(column=0, row=9, pady=10)
-
-            name = filename.split('/')[-1]
-            print(f"[+] Succefuly loaded {name}")
-            self.dxfButtonLabel = Label(self,text=name, background='#1F8A70', font=('Roboto Bold',10))
-            self.dxfButtonLabel.grid(column=0, row=10)
-
-    def detectChanges(self):
-        previous_files = [f for f in listdir('./draws') if isfile(join('./draws', f))]
-        while True:
-            new_files = [f for f in listdir('./draws') if isfile(join('./draws', f))]
-            if previous_files != new_files:
-                print('[+] Draws folder was updated')
-                previous_files = new_files
-                self.searchForJobs()
-            time.sleep(3)
-    def getFormEntries(self):
-        dataDictionary = {"jobName" : "x",
-        "descripcion" : "x",
-        "date" : "x",
-        "file" : "x"} 
-        
-        dataDictionary["jobName"] = self.nameEntrie.get()
-        dataDictionary["descripcion"] = self.descriptionEntrie.get("1.0",END)[0:-2]
-        dataDictionary["date"] = self.cal.get()
-        
-        if self.dxfFileName != "x":
-            dataDictionary["file"] = self.dxfFileName
-            self.removeDxf()
-
-        self.dxfFileName = 'x'
-        self.jobName = 'x'
-        self.description = 'x'
-        self.date = 'x'
-        self.nameEntrie.delete(0,END)
-        self.descriptionEntrie.delete("1.0",END)
-        
-        with open(f'./draws/{dataDictionary["jobName"]}.json', 'w') as outputFile:
-            json.dump(dataDictionary, outputFile)
-            
-
-            print('[+] File created succesfuly')
-        
-        ### SEND FILE VIA FTP ###
-        
-        # Process(target=self.clientSocket.sendTasks(dataDictionary['file']))
-       
-        print(f'[+] json: {dataDictionary}')
-        updateJobs(self.left)
-        dataDictionary = dict.fromkeys(dataDictionary, 0)
-        
-        # pendinFiles = os.scandir('./draws')
-        # for file in pendinFiles:
-        #     print(file)
-        # print(pendinFiles)
-        # print(dataDictionary)
-        pass
-
+        fileDirection = os.path.join(os.getcwd(), "dxf", file)
+        fileDirection = os.path.normpath(fileDirection)
+        print(fileDirection)
+        if file == "No archivo":
+            self.file.configure(text='No archivo', command= lambda: doNothing())
+        else:
+            self.file.configure(text=file, command= lambda: subprocess.run([FILEBROWSER_PATH, '/select,', fileDirection]))
+        self.file.grid(column=0,row=7, sticky='w', padx=10)
+        # self.file.grid(column=0,row=7, sticky='w', padx=10)
+        # pendingFrame.searchForJobs()
+        # print(name)
 
 # server = ServerSocketHandler()
 def initRoot():
