@@ -95,9 +95,9 @@ class MainApplication(tk.Frame):
 
 class PendingTaskFrame(tk.Frame):
 
-    def __init__(self, parent, parent_height):
+    def __init__(self, parent, parent_height, rightFrame):
         tk.Frame.__init__(self, parent, width=1000,height=parent_height, background= '#393E46')
-        
+        self.right = rightFrame
         self.grid_propagate(0)
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(0, weight=1)
@@ -170,6 +170,9 @@ class PendingTaskFrame(tk.Frame):
             else:
                 initialRow += 1
                 initialColumn = 0
+            
+            infoButton = Button(container, text='Detalles', font=('Roboto Bold',12), width=20, height=2)
+            infoButton.grid(column=0,row=4)
             self.references.append(container)
             f = open(file)
             data = json.load(f)
@@ -177,17 +180,28 @@ class PendingTaskFrame(tk.Frame):
         # print(self.references[1].winfo_children()[2].cget('text').split(':')[1]) 
         self.sortJobs()
         
+   
     
     def sortJobs(self):
-        
+        self. referencesToPass =[]
         self.references.sort(key= lambda x: datetime.datetime.strptime(x.winfo_children()[2].cget('text').split(':')[1], '%d/%m/%y'))
         # print(f'IMPORTANTE {self.references}')
         initialRow = 0
         initialColumn = 0
+        taskCount = 0
         for job in self.references:
             currentDate = job.winfo_children()[2].cget('text').split(':')[1]
             job.grid(column=initialColumn, row=initialRow, sticky='news', pady=10, padx=10)
-
+            name = job.winfo_children()[0].cget('text')  # name of job
+            desc = job.winfo_children()[1].cget('text')[2:]  # decription of job
+            date = job.winfo_children()[2].cget('text')[2:]  # date
+            file = job.winfo_children()[3].cget('text')[2:]  # filename
+            argumentsToPass = [name,desc,date,file]
+            self.referencesToPass.append(argumentsToPass)
+            print(self.referencesToPass[taskCount])
+            job.winfo_children()[4].configure(command= lambda: self.right.displayTask(self, name, desc, date,file))
+            #job.winfo_children()[taskCount].bind("<Button-1>", lambda x: self.right.displayTask(self, *self.referencesToPass[taskCount]))
+            taskCount += 1
             if initialColumn <= 1:
                 initialColumn += 1
             else:
@@ -198,7 +212,18 @@ class PendingTaskFrame(tk.Frame):
 
 
 
+class viewTaskFrame(tk.Frame):
 
+    def __init__(self,  parent, parent_height, parent_width):
+        tk.Frame.__init__(self, parent, width=366, height=parent_height, background= '#1F8A70')
+        self.grid_propagate(0)
+    
+    def displayTask(self,pendingFrame, name, description, date,file):
+        print(name)
+        nameLabel = Label(self, text=name, font=('Roboto Bold',20), background="#1F8A70", fg='white',wraplength=310, justify=LEFT)
+        nameLabel.grid(column=0,row=0, sticky='w', padx=10)
+        pendingFrame.searchForJobs()
+        print(name)
 class AddTaskFrame(tk.Frame):
     
     def __init__(self, parent, parent_height, parent_width, left_frame, serverObj):
@@ -336,15 +361,16 @@ def initRoot():
     
     # main.pack(side="top", fill="both", expand=True)
     # print(main.winfo_width())
-    
-    left = PendingTaskFrame(root, root.winfo_height())
+    right = viewTaskFrame(root, root.winfo_height(), root.winfo_width())
+    left = PendingTaskFrame(root, root.winfo_height(), right)
     left.grid(column=0,row=0, sticky="nsew")
     server = ServerSocketHandler(left)
     serverLooop = threading.Thread(target=server.listenForFiles)
     serverLooop.start()
     # server = ServerSocketHandler(left)
     # Process(target=server.listenForFiles).start()
-    right = AddTaskFrame(root, root.winfo_height(), root.winfo_width(), left, server)
+    
+    #\right = AddTaskFrame(root, root.winfo_height(), root.winfo_width(), left, server)
     right.grid(column=1,row=0, sticky="nsew")
 
     
