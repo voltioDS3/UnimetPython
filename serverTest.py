@@ -137,11 +137,15 @@ class PendingTaskFrame(tk.Frame):
             time.sleep(3)
             
     def searchForJobs(self):
+        
         self.references = []
         
         pendinFiles = os.scandir('./draws')
         initialRow = 0
         initialColumn = 0
+        for child in self.scrollFrame.winfo_children():
+                child.destroy()
+                print('destroying Children')
         for file in pendinFiles:
             # print(self.winfo_width)
             container = Frame(self.scrollFrame, width=300, background= '#243763', height=300)
@@ -191,20 +195,14 @@ class PendingTaskFrame(tk.Frame):
         # print(f'IMPORTANTE {self.references}')
         initialRow = 0
         initialColumn = 0
-        taskCount = 0
+       
         for job in self.references:
             currentDate = job.winfo_children()[2].cget('text').split(':')[1]
             job.grid(column=initialColumn, row=initialRow, sticky='news', pady=10, padx=10)
-            name = job.winfo_children()[0].cget('text')  # name of job
-            desc = job.winfo_children()[1].cget('text')[2:]  # decription of job
-            date = job.winfo_children()[2].cget('text')[2:]  # date
-            file = job.winfo_children()[3].cget('text')[2:]  # filename
-            argumentsToPass = [name,desc,date,file]
-            self.referencesToPass.append(argumentsToPass)
-            print(self.referencesToPass[taskCount])
+            
             # job.winfo_children()[4].configure(command= lambda: self.right.displayTask(self, name, desc, date,file))
             #job.winfo_children()[taskCount].bind("<Button-1>", lambda x: self.right.displayTask(self, *self.referencesToPass[taskCount]))
-            taskCount += 1
+            
             if initialColumn <= 1:
                 initialColumn += 1
             else:
@@ -220,6 +218,8 @@ class viewTaskFrame(tk.Frame):
 
     def __init__(self,  parent, parent_height, parent_width):
         tk.Frame.__init__(self, parent, width=366, height=parent_height, background= '#1F8A70')
+        self.confirmation = None
+        self.parent = parent
         self.grid_propagate(0)
         self.name = Label(self, text='NOMBRE TRABAJO', font=('Roboto Bold',20), background="#FF6E31", fg='white',wraplength=340, justify=LEFT)
         self.name.grid(column=0,row=0, padx=10)
@@ -245,12 +245,73 @@ class viewTaskFrame(tk.Frame):
         self.file = Button(self, text=' ', background="#FF6E31", font=('Roboto',20), fg='white',wraplength=340, justify=LEFT)
         # self.file.grid(column=0,row=7, sticky='w', padx=10)
 
-        self.taskDoneButton = Button(self, text='TERMINAR TRABAJO', command = lambda: ,background="#FF6E31", font=('Roboto',20), fg='white',wraplength=340, justify=LEFT)
+        self.taskDoneButton = Button(self, text='TERMINAR TRABAJO', command = lambda: self.finishJob(),background="#FF6E31", font=('Roboto',20), fg='white',wraplength=340, justify=LEFT)
         self.taskDoneButton.grid(column=0,row=9, sticky='w', padx=10, pady=10)
-        
     
-    def displayTask(self,pendingFrame, container):
+    def setTrue(self, window):
+        self.confirmation = True
+        window.destroy()
+        window.quit()
+
+    def setFalse(self, window):
+        self.confirmation = False
+        window.destroy()
+        window.quit()
+    def create_popup(self):
+    # Create the pop-up window
+        popup_window = tk.Toplevel(self.parent)
+        popup_window.title("Confirmation")
+        popup_window.geometry("500x300")
+    
+    # Add a message to the pop-up window
+        message_label = tk.Label(popup_window, text="Seguro que quieres terminar el trabajo?")
+        message_label.pack(pady=20)
         
+    # Add the confirmation buttons
+        confirm_button = tk.Button(popup_window, text="Confirmar", width=10, background="#FF6E31", font=('Roboto',20), fg='white',wraplength=340, justify=LEFT, command= lambda: self.setTrue(popup_window))
+        confirm_button.pack(side="left", padx=50)
+        cancel_button = tk.Button(popup_window, text="Cancelar", width=10, background="#FF6E31", font=('Roboto',20), fg='white',wraplength=340, justify=LEFT, command= lambda: self.setFalse(popup_window))
+        cancel_button.pack(side="right", padx=50)
+        popup_window.mainloop()
+    def finishJob(self):
+        self.create_popup()
+        print('hello')
+        if self.confirmation == True:
+            jsonFileLocation = self.nameLabel.cget('text') + '.json'
+            newJsonFileLocation = os.path.join(os.getcwd(), "doneDraws", jsonFileLocation)
+            jsonFileLocation = os.path.join(os.getcwd(), "draws", jsonFileLocation)
+       
+            print(jsonFileLocation)
+            os.rename(jsonFileLocation, newJsonFileLocation)
+            if self.file.cget('text') != "No archivo":
+                dxfFileLocation = self.file.cget('text')
+                newDxfFileLocation = os.path.join(os.getcwd(), "doneDxf", dxfFileLocation)
+                dxfFileLocation = os.path.join(os.getcwd(), "dxf", dxfFileLocation)
+                os.rename(dxfFileLocation, newDxfFileLocation)
+            print('[+] done transfering file')
+
+            self.nameLabel.configure(text=' ')
+            # self.nameLabel.grid(column=0,row=1, sticky='w', padx=10)
+
+            self.description.configure(text=' ')
+            # self.description.grid(column=0,row=3, sticky='w', padx=10)
+            
+            self.date.configure(text=' ')
+            # self.date.grid(column=0,row=5, sticky='w', padx=10)
+            
+        
+        
+            self.file.configure(text=' ', command= lambda: doNothing())
+        
+            self.file.grid(column=0,row=7, sticky='w', padx=10)
+            self.pendingFrame.searchForJobs()
+        elif self.confirmation == False:
+            print('[+] Confirmation denied')
+        
+        self.confirmation = None
+        pass
+    def displayTask(self,pendingFrame, container):
+        self.pendingFrame = pendingFrame
         name = container.winfo_children()[0].cget('text')
         desc = container.winfo_children()[1].cget('text')[2:]  # decription of job
         date = container.winfo_children()[2].cget('text')[2:]  # date
