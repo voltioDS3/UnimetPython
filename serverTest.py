@@ -37,26 +37,17 @@ class ServerSocketHandler():
 
     def __init__(self, leftFrame):
         self.s = socket.socket()  #server
-        self.s2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  #client
+        # self.s2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  #client
         # self.leftFrame = leftFrame
         # self.s.bind((self.SERVER_HOST, self.SERVER_PORT))
         self.leftFrame = leftFrame
 
-    def sendCompletedTaskSignal(self, jsonTask, dxfFile):
-        try:
-            
-            self.s2.connect((socket.gethostbyname(self.PC_OFICINA), self.CLIENT_PORT))            
-            print(f"[+] Conected to {socket.gethostbyname(self.PC_OFICINA)}")
-        except Exception:
-            print("[!] Could not connect to CNC_PC")
-
-        self.s2.send()
     def listenForFiles(self):
         
         # print(f'[+] Listening on port {self.SERVER_PORT}')
         while True:
             self.s = socket.socket()
-            self.s.bind((self.SERVER_HOST, self.SERVER_PORT))
+            self.s.bind((socket.gethostbyname(self.SERVER_HOST), self.SERVER_PORT))
             self.s.listen(5)
             # self.s.listen(5)
            
@@ -90,23 +81,6 @@ class ServerSocketHandler():
             self.leftFrame.searchForJobs()
             time.sleep(0.3)
             
-            
-
-
-
-
-
-class MainApplication(tk.Frame):
-    def __init__(self, parent, *args, **kwargs):
-        tk.Frame.__init__(self, parent, *args, **kwargs)
-        self.parent = parent
-        
-
-
-# class PendingTaskFrame(tk.Frame):
-
-#     def __init__(self, parent):
-#         tk.Frame.__init__(self, parent, width=366, background= '#00425A')
 
 class PendingTaskFrame(tk.Frame):
 
@@ -427,27 +401,10 @@ def initRoot():
 def updateJobs(left):
     left.searchForJobs()
 
-def listenFiles():
-    # server.listenForFiles()
-    pass
-def detectChanges(fuckingLeft):
-    
-    previous_files = [f for f in listdir('./draws') if isfile(join('./draws', f))]
-    while True:
-        new_files = [f for f in listdir('./draws') if isfile(join('./draws', f))]
-        if previous_files != new_files:
-            print('[+] Draws folder was updated')
-            previous_files = new_files
-            fuckingLeft.searchForJobs()
+
             
             
-        time.sleep(3)
+      
 if __name__ == "__main__":
     main = threading.Thread(target=initRoot)
     main.start()
-    # serverLooop = threading.Thread(target=server.listenForFiles)
-    # serverLooop.start()
-    
-    # Process(target=detectChanges).start()
-    # Process(target=sendFiles).start()
-    # Process(target=conectToServer).start()

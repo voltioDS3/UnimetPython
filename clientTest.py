@@ -62,7 +62,7 @@ class ClientSocketHadler():
                 break
             try:
             
-                self.s.connect((socket.gethostbyname(self.CNC_PC_NAME), self.CNC_PC_PORT))            
+                self.s.connect((socket.gethostbyname(self.CNC_PC_NAME), self.CNC_PC_PORT))           
                 print(f"[+] Conected to {socket.gethostbyname(self.CNC_PC_NAME)}")
             except Exception:
                 print("[!] Could not connect to CNC_PC")
@@ -104,7 +104,7 @@ class MainApplication(tk.Frame):
 #         tk.Frame.__init__(self, parent, width=366, background= '#00425A')
 
 class PendingTaskFrame(tk.Frame):
-    SERVER_HOST = "0.0.0.0"
+    SERVER_HOST = "127.0.0.1"
     SERVER_PORT = 5555
     SEPARATOR = '<SEPARATOR>'
     def __init__(self, parent, parent_height):
@@ -154,6 +154,8 @@ class PendingTaskFrame(tk.Frame):
                 dxfFileLocation = os.path.join(os.getcwd(), 'dxf', dxfFile)
                 os.rename(dxfFileLocation, newDxfFileLocation)
             print('[+] moving finished tasks')
+
+            self.searchForJobs()
     def _on_mousewheel(self, event):
         self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
 
