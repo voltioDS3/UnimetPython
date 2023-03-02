@@ -32,12 +32,25 @@ class ServerSocketHandler():
     SERVER_PORT = 4444
     SEPARATOR = '<SEPARATOR>'
     BUFFER_SIZE = 4096
+    PC_OFICINA = 'DS3tin'
+    CLIENT_PORT = 5555
 
     def __init__(self, leftFrame):
-        self.s = socket.socket()
+        self.s = socket.socket()  #server
+        self.s2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  #client
         # self.leftFrame = leftFrame
         # self.s.bind((self.SERVER_HOST, self.SERVER_PORT))
         self.leftFrame = leftFrame
+
+    def sendCompletedTaskSignal(self, jsonTask, dxfFile):
+        try:
+            
+            self.s2.connect((socket.gethostbyname(self.PC_OFICINA), self.CLIENT_PORT))            
+            print(f"[+] Conected to {socket.gethostbyname(self.PC_OFICINA)}")
+        except Exception:
+            print("[!] Could not connect to CNC_PC")
+
+        self.s2.send()
     def listenForFiles(self):
         
         # print(f'[+] Listening on port {self.SERVER_PORT}')
@@ -215,9 +228,13 @@ def doNothing():
     print('doingNothing')
 
 class viewTaskFrame(tk.Frame):
-
+    SEPARATOR = '<SEPARATOR>'
+    PC_OFICINA = 'DS3tin'
+    CLIENT_PORT = 5555
     def __init__(self,  parent, parent_height, parent_width):
         tk.Frame.__init__(self, parent, width=366, height=parent_height, background= '#1F8A70')
+
+        self.senderSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.confirmation = None
         self.parent = parent
         self.grid_propagate(0)
@@ -248,6 +265,24 @@ class viewTaskFrame(tk.Frame):
         self.taskDoneButton = Button(self, text='TERMINAR TRABAJO', command = lambda: self.finishJob(),background="#FF6E31", font=('Roboto',20), fg='white',wraplength=340, justify=LEFT)
         self.taskDoneButton.grid(column=0,row=9, sticky='w', padx=10, pady=10)
     
+    def sendCompletedTaskSignal(self, jsonTask, dxfFile = 'x'):
+        print('[+] fucking snding files')
+        try:
+            
+            self.senderSocket.connect((socket.gethostbyname(self.PC_OFICINA), self.CLIENT_PORT))            
+            print(f"[+] Conected to {socket.gethostbyname(self.PC_OFICINA)}")
+        except Exception:
+            print("[!] Could not connect to CNC_PC")
+
+        
+        self.senderSocket.send(f'{jsonTask}{self.SEPARATOR}{dxfFile}'.encode())
+
+        self.senderSocket.close()
+        time.sleep(0.5)
+        self.senderSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        print('[+] done sending signal , conection ended')
+
+
     def setTrue(self, window):
         self.confirmation = True
         window.destroy()
@@ -288,6 +323,17 @@ class viewTaskFrame(tk.Frame):
                 newDxfFileLocation = os.path.join(os.getcwd(), "doneDxf", dxfFileLocation)
                 dxfFileLocation = os.path.join(os.getcwd(), "dxf", dxfFileLocation)
                 os.rename(dxfFileLocation, newDxfFileLocation)
+                jsonName = self.nameLabel.cget('text') + '.json'
+                filename = self.file.cget('text')
+                sendCompletedFiles = threading.Thread(target=self.sendCompletedTaskSignal, args=(jsonName, filename))
+                sendCompletedFiles.start()
+            
+            else:
+                jsonName = self.nameLabel.cget('text') + '.json'
+                sendCompletedFiles = threading.Thread(target=self.sendCompletedTaskSignal, args=(jsonName))
+                sendCompletedFiles.start()
+                
+
             print('[+] done transfering file')
 
             self.nameLabel.configure(text=' ')
@@ -305,6 +351,8 @@ class viewTaskFrame(tk.Frame):
         
             self.file.grid(column=0,row=7, sticky='w', padx=10)
             self.pendingFrame.searchForJobs()
+
+
         elif self.confirmation == False:
             print('[+] Confirmation denied')
         

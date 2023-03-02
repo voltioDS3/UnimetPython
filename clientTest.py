@@ -104,10 +104,12 @@ class MainApplication(tk.Frame):
 #         tk.Frame.__init__(self, parent, width=366, background= '#00425A')
 
 class PendingTaskFrame(tk.Frame):
-
+    SERVER_HOST = "0.0.0.0"
+    SERVER_PORT = 5555
+    SEPARATOR = '<SEPARATOR>'
     def __init__(self, parent, parent_height):
         tk.Frame.__init__(self, parent, width=1000,height=parent_height, background= '#393E46')
-        
+        self.recieverSocket = socket.socket()
         self.grid_propagate(0)
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(0, weight=1)
@@ -129,6 +131,29 @@ class PendingTaskFrame(tk.Frame):
         self.verticalScrollbar.grid(row=0,column=1, sticky="nsew")
         self.searchForJobs()
 
+    def listenForCompletedTask(self):
+        while True:
+            self.recieverSocket = socket.socket()
+            self.recieverSocket.bind((self.SERVER_HOST, self.SERVER_PORT))
+            self.recieverSocket.listen(5)
+            # self.s.listen(5)
+           
+            print('restar loop')
+            client_socket, addres = self.recieverSocket.accept()
+            print(f'[+] {addres} connected')
+
+            recieved = client_socket.recv(1024).decode()
+            jsonFile , dxfFile = recieved.split(self.SEPARATOR)
+
+            newJsonFileLocation = os.path.join(os.getcwd(), "doneDraws", jsonFile)
+            jsonFileLocation = os.path.join(os.getcwd(), "draws", jsonFile)
+            os.rename(jsonFileLocation, newJsonFileLocation)
+
+            if dxfFile != 'x':
+                newDxfFileLocation = os.path.join(os.getcwd(), 'doneDxf', dxfFile)
+                dxfFileLocation = os.path.join(os.getcwd(), 'dxf', dxfFile)
+                os.rename(dxfFileLocation, newDxfFileLocation)
+            print('[+] moving finished tasks')
     def _on_mousewheel(self, event):
         self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
 
@@ -334,6 +359,8 @@ def initRoot():
     right = AddTaskFrame(root, root.winfo_height(), root.winfo_width(), left, clie)
     right.grid(column=1,row=0, sticky="nsew")
 
+    listenForTasks = threading.Thread(target=left.listenForCompletedTask)
+    listenForTasks.start()
   
     
     # print(left.winfo_width())
