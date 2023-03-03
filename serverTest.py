@@ -32,7 +32,7 @@ class ServerSocketHandler():
     SERVER_PORT = 4444
     SEPARATOR = '<SEPARATOR>'
     BUFFER_SIZE = 4096
-    PC_OFICINA = 'DS3tin'
+    PC_OFICINA = 'alreadydead'
     CLIENT_PORT = 5555
 
     def __init__(self, leftFrame):
@@ -47,7 +47,7 @@ class ServerSocketHandler():
         # print(f'[+] Listening on port {self.SERVER_PORT}')
         while True:
             self.s = socket.socket()
-            self.s.bind((socket.gethostbyname(self.SERVER_HOST), self.SERVER_PORT))
+            self.s.bind((self.SERVER_HOST, self.SERVER_PORT))
             self.s.listen(5)
             # self.s.listen(5)
            
@@ -203,7 +203,7 @@ def doNothing():
 
 class viewTaskFrame(tk.Frame):
     SEPARATOR = '<SEPARATOR>'
-    PC_OFICINA = 'DS3tin'
+    PC_OFICINA = 'alreadydead'
     CLIENT_PORT = 5555
     def __init__(self,  parent, parent_height, parent_width):
         tk.Frame.__init__(self, parent, width=366, height=parent_height, background= '#1F8A70')
@@ -298,13 +298,15 @@ class viewTaskFrame(tk.Frame):
                 dxfFileLocation = os.path.join(os.getcwd(), "dxf", dxfFileLocation)
                 os.rename(dxfFileLocation, newDxfFileLocation)
                 jsonName = self.nameLabel.cget('text') + '.json'
+                print(jsonName)
                 filename = self.file.cget('text')
-                sendCompletedFiles = threading.Thread(target=self.sendCompletedTaskSignal, args=(jsonName, filename))
+                sendCompletedFiles = threading.Thread(target=self.sendCompletedTaskSignal, args=(jsonName, filename,))
                 sendCompletedFiles.start()
             
             else:
                 jsonName = self.nameLabel.cget('text') + '.json'
-                sendCompletedFiles = threading.Thread(target=self.sendCompletedTaskSignal, args=(jsonName))
+                print(jsonName)
+                sendCompletedFiles = threading.Thread(target=self.sendCompletedTaskSignal, args=(jsonName,))
                 sendCompletedFiles.start()
                 
 
@@ -406,5 +408,42 @@ def updateJobs(left):
             
       
 if __name__ == "__main__":
-    main = threading.Thread(target=initRoot)
-    main.start()
+    # main = threading.Thread(target=initRoot) 
+    # main.start()
+
+    root = tk.Tk()
+    root['background'] = "#393E46"
+    root.geometry("1366x769")
+    root.update_idletasks()
+    # root.grid_rowconfigure(0, weight=1)
+    # root.columnconfigure(0, weight=1)
+    root.title("UnimetApp")
+    root.resizable(False,False)
+    # main = MainApplication(root,  background= '#393E46')
+    
+    # main.pack(side="top", fill="both", expand=True)
+    # print(main.winfo_width())
+    right = viewTaskFrame(root, root.winfo_height(), root.winfo_width())
+    left = PendingTaskFrame(root, root.winfo_height(), right)
+    left.grid(column=0,row=0, sticky="nsew")
+    server = ServerSocketHandler(left)
+    serverLooop = threading.Thread(target=server.listenForFiles)
+    serverLooop.start()
+    # server = ServerSocketHandler(left)
+    # Process(target=server.listenForFiles).start()
+    
+    #\right = AddTaskFrame(root, root.winfo_height(), root.winfo_width(), left, server)
+    right.grid(column=1,row=0, sticky="nsew")
+
+    
+    # p = multiprocessing.Process(target=detectChanges, args=[left])
+    # p.start()
+    # print(left.winfo_width())
+    # print(root.winfo_width())
+    # print(root.winfo_height())
+    # Process(target=left.checkFolders).start()
+    # Process(root.mainloop()).start()
+    
+    root.mainloop()
+    
+    
