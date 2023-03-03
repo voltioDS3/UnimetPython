@@ -104,7 +104,7 @@ class MainApplication(tk.Frame):
 #         tk.Frame.__init__(self, parent, width=366, background= '#00425A')
 
 class PendingTaskFrame(tk.Frame):
-    SERVER_HOST = "127.0.0.1"
+    SERVER_HOST = "0.0.0.0"
     SERVER_PORT = 5555
     SEPARATOR = '<SEPARATOR>'
     def __init__(self, parent, parent_height):
@@ -165,6 +165,10 @@ class PendingTaskFrame(tk.Frame):
         pendinFiles = os.scandir('./draws')
         initialRow = 0
         initialColumn = 0
+
+        for child in self.scrollFrame.winfo_children():
+            child.destroy()
+            print('[+] destroying children')
         for file in pendinFiles:
             # print(self.winfo_width)
             container = Frame(self.scrollFrame, width=300, background= '#243763', height=300)
