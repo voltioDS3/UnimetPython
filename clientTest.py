@@ -22,86 +22,78 @@ pyglet.font.add_file('./fonts/Roboto-Italic.ttf')
 pyglet.font.add_file('./fonts/Roboto-Regular.ttf')
 
 
+class NetworkHandler():
 
-class ClientSocketHadler():
-    CNC_PC_NAME = 'DS3tin'
-    
-    print(socket.gethostbyname(CNC_PC_NAME))
-    CNC_PC_PORT = 4444
+    ### CONSTANTS AS A CLIENT ###
+    CNC_PC_NAME = 'DS3tin'  # the cnc pc that is far away
+    CNC_PC_PORT = 4444  # port for conecting and sending
     SEPARATOR = "<SEPARATOR>"
     BUFFER_SIZE = 4096
-    def  __init__(self):
-        self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
+    ### CONSTANTS AS A SERVER ###
+    SERVER_HOST = "0.0.0.0"
+    SERVER_PORT = 5555
+    SEPARATOR = '<SEPARATOR>'
+
+    def  __init__(self, pendingObj, addObj):
+        self.client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # socket for sending files to CNC
+        self.server = socket.socket()  # socket for recieving and listening for completed tasks form CNC
+        self.pendingFrame = pendingObj
+        self.addFrame = addObj
+    def listenForCompletedTask(self):
+        while True:
+            self.server = socket.socket()
+            self.server.bind((self.SERVER_HOST, self.SERVER_PORT))
+            self.server.listen(5)  # listening for CNC to send completed tasks
+            
+            client_socket, addres = self.server.accept()
+            print(f'[+] {addres} connected')
+
+            recieved = client_socket.recv(1024).decode()
+            jsonFile , dxfFile = recieved.split(self.SEPARATOR)
+
+            newJsonFileLocation = os.path.join(os.getcwd(), "doneDraws", jsonFile)
+            jsonFileLocation = os.path.join(os.getcwd(), "draws", jsonFile)
+            os.rename(jsonFileLocation, newJsonFileLocation)
+
+            if dxfFile != 'x':
+                newDxfFileLocation = os.path.join(os.getcwd(), 'doneDxf', dxfFile)
+                dxfFileLocation = os.path.join(os.getcwd(), 'dxf', dxfFile)
+                os.rename(dxfFileLocation, newDxfFileLocation)
+            print('[+] moving finished tasks')
+
+            self.pendingFrame.searchForJobs()
     
-    def startConection(self):
-
-        try:
-            
-            self.s.connect((socket.gethostbyname(self.CNC_PC_NAME), self.CNC_PC_PORT))            
-            print(f"[+] Conected to {socket.gethostbyname(self.CNC_PC_NAME)}")
-        except Exception:
-            print("[!] Could not connect to CNC_PC")
-        
     def sendTasks(self, jsonFile, dxfFile = 'x'):
-        # try:
-            
-        #     self.s.connect((socket.gethostbyname(self.CNC_PC_NAME), self.CNC_PC_PORT))            
-        #     print(f"[+] Conected to {socket.gethostbyname(self.CNC_PC_NAME)}")
-        # except Exception:
-        #     print("[!] Could not connect to CNC_PC")
-        
         filesList = [jsonFile,dxfFile]
         print(filesList)
-        
-     
-   
         for file in filesList:
-            
             if file == 'x':
                 break
             try:
-            
-                self.s.connect((socket.gethostbyname(self.CNC_PC_NAME), self.CNC_PC_PORT))           
+                self.client.connect((socket.gethostbyname(self.CNC_PC_NAME), self.CNC_PC_PORT))           
                 print(f"[+] Conected to {socket.gethostbyname(self.CNC_PC_NAME)}")
             except Exception:
                 print("[!] Could not connect to CNC_PC")
 
             filesize = os.path.getsize(file)
-            self.s.send(f"{file}{self.SEPARATOR}{filesize}".encode())
+            self.client.send(f"{file}{self.SEPARATOR}{filesize}".encode())
             with open(file, 'rb') as f:
                 while True:
                     bytes_read = f.read(self.BUFFER_SIZE)
                     if not bytes_read:
                         break  
-                    self.s.sendall(bytes_read)
+                    self.client.sendall(bytes_read)
                 print(f'[+] Done sending {file}')
-                # self.s.close()
-            
-            print('trying to send another file')
-            
-            self.s.close()
-            time.sleep(0.5)
-            self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            print('conection ended')
-
-        # self.s.close()
-        
                 
+            print('[!] Trying to send another file')
+            
+            self.client.close()
+            time.sleep(0.5)
+            self.client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            print('[+] Conection ended')
 
 
-
-class MainApplication(tk.Frame):
-    def __init__(self, parent, *args, **kwargs):
-        tk.Frame.__init__(self, parent, *args, **kwargs)
-        self.parent = parent
-        
-
-
-# class PendingTaskFrame(tk.Frame):
-
-#     def __init__(self, parent):
-#         tk.Frame.__init__(self, parent, width=366, background= '#00425A')
 
 class PendingTaskFrame(tk.Frame):
     SERVER_HOST = "0.0.0.0"
@@ -131,31 +123,7 @@ class PendingTaskFrame(tk.Frame):
         self.verticalScrollbar.grid(row=0,column=1, sticky="nsew")
         self.searchForJobs()
 
-    def listenForCompletedTask(self):
-        while True:
-            self.recieverSocket = socket.socket()
-            self.recieverSocket.bind((self.SERVER_HOST, self.SERVER_PORT))
-            self.recieverSocket.listen(5)
-            # self.s.listen(5)
-           
-            print('restar loop')
-            client_socket, addres = self.recieverSocket.accept()
-            print(f'[+] {addres} connected')
-
-            recieved = client_socket.recv(1024).decode()
-            jsonFile , dxfFile = recieved.split(self.SEPARATOR)
-
-            newJsonFileLocation = os.path.join(os.getcwd(), "doneDraws", jsonFile)
-            jsonFileLocation = os.path.join(os.getcwd(), "draws", jsonFile)
-            os.rename(jsonFileLocation, newJsonFileLocation)
-
-            if dxfFile != 'x':
-                newDxfFileLocation = os.path.join(os.getcwd(), 'doneDxf', dxfFile)
-                dxfFileLocation = os.path.join(os.getcwd(), 'dxf', dxfFile)
-                os.rename(dxfFileLocation, newDxfFileLocation)
-            print('[+] moving finished tasks')
-
-            self.searchForJobs()
+    
     def _on_mousewheel(self, event):
         self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
 
@@ -170,12 +138,12 @@ class PendingTaskFrame(tk.Frame):
             child.destroy()
             print('[+] destroying children')
         for file in pendinFiles:
-            # print(self.winfo_width)
+            
             container = Frame(self.scrollFrame, width=300, background= '#243763', height=300)
             container.grid_propagate(0)
             container.grid_rowconfigure(0, weight=0)
             container.grid_columnconfigure(0, weight=0)
-            # container.grid(column=initialColumn, row=initialRow, sticky='news', pady=10, padx=10)
+            
             
             f = open(file)
             data = json.load(f)
@@ -202,15 +170,13 @@ class PendingTaskFrame(tk.Frame):
             self.references.append(container)
             f = open(file)
             data = json.load(f)
-
-        # print(self.references[1].winfo_children()[2].cget('text').split(':')[1]) 
         self.sortJobs()
         
     
     def sortJobs(self):
         
         self.references.sort(key= lambda x: datetime.datetime.strptime(x.winfo_children()[2].cget('text').split(':')[1], '%d/%m/%y'))
-        # print(f'IMPORTANTE {self.references}')
+        
         initialRow = 0
         initialColumn = 0
         for job in self.references:
@@ -223,20 +189,19 @@ class PendingTaskFrame(tk.Frame):
                 initialRow += 1
                 initialColumn = 0
 
-            # print(currentDate)
-
-
-
 
 class AddTaskFrame(tk.Frame):
-    
-    def __init__(self, parent, parent_height, parent_width, left_frame, clientObj):
+    ### CONSTANTS AS A CLIENT ###
+    CNC_PC_NAME = 'DS3tin'  # the cnc pc that is far away
+    CNC_PC_PORT = 4444  # port for conecting and sending
+    SEPARATOR = "<SEPARATOR>"
+    BUFFER_SIZE = 4096
+    def __init__(self, parent, parent_height, parent_width, left_frame):
         tk.Frame.__init__(self, parent, width=366, height=parent_height, background= '#1F8A70')
         self.left = left_frame
         self.grid_propagate(0)
-        self.clientSocket = clientObj
-        # self.grid_rowconfigure(0, weight=1)
-        # self.grid_columnconfigure(0, weight=1)
+        
+        self.client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         ###  form variables ###
         self.dxfFileName = 'x'
         self.jobName = 'x'
@@ -290,8 +255,6 @@ class AddTaskFrame(tk.Frame):
             self.dxfButton = Button(self, image=self.dxfButtonImage, background= '#1F8A70', borderwidth=0,  activebackground='#1F8A70', command= lambda : os.startfile(filename))
             self.dxfButton.photo = self.dxfButtonImage
         
-
-        # dxfButtonLabel.grid(column=0,row=9)
             self.dxfButton.grid(column=0, row=9, pady=10)
 
             name = filename.split('/')[-1]
@@ -328,73 +291,75 @@ class AddTaskFrame(tk.Frame):
         
         ### SEND FILE VIA FTP ###
         jsonfile = f'./draws/{dataDictionary["jobName"]}.json'
-        sendFiles = threading.Thread(target=self.clientSocket.sendTasks(jsonfile,dataDictionary["file"]))
-        sendFiles.start()
-        # Process(target=self.clientSocket.sendTasks(jsonfile, dataDictionary['file']))
-       
+        # sendFiles = threading.Thread(target=self.clientSocket.sendTasks(jsonfile,dataDictionary["file"]))
+        self.sendTasks(jsonfile,dataDictionary["file"])
+        # sendFiles.start()
+      
         print(f'[+] json: {dataDictionary}')
-        updateJobs(self.left)
+        ##### TESTING AREA UNCOMENT IF BAD
+        # updateJobs(self.left)
+
+        self.left.searchForJobs()
+
+        ### end of testing area
         dataDictionary = dict.fromkeys(dataDictionary, 0)
-        
-        # pendinFiles = os.scandir('./draws')
-        # for file in pendinFiles:
-        #     print(file)
-        # print(pendinFiles)
-        # print(dataDictionary)
-        pass
+
+    def sendTasks(self, jsonFile, dxfFile = 'x'):
+        filesList = [jsonFile,dxfFile]
+        print(filesList)
+        for file in filesList:
+            if file == 'x':
+                break
+            try:
+                self.client.connect((socket.gethostbyname(self.CNC_PC_NAME), self.CNC_PC_PORT))           
+                print(f"[+] Conected to {socket.gethostbyname(self.CNC_PC_NAME)}")
+            except Exception:
+                print("[!] Could not connect to CNC_PC")
+
+            filesize = os.path.getsize(file)
+            self.client.send(f"{file}{self.SEPARATOR}{filesize}".encode())
+            with open(file, 'rb') as f:
+                while True:
+                    bytes_read = f.read(self.BUFFER_SIZE)
+                    if not bytes_read:
+                        break  
+                    self.client.sendall(bytes_read)
+                print(f'[+] Done sending {file}')
+                
+            print('[!] Trying to send another file')
+            
+            self.client.close()
+            time.sleep(0.5)
+            self.client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            print('[+] Conection ended')
 
 
-clie = ClientSocketHadler()
-def initRoot():
-    root = tk.Tk()
-    root['background'] = "#393E46"
-    root.geometry("1366x769")
-    root.update_idletasks()
-    # root.grid_rowconfigure(0, weight=1)
-    # root.columnconfigure(0, weight=1)
-    root.title("UnimetApp")
-    root.resizable(False,False)
-    # main = MainApplication(root,  background= '#393E46')
-    
-    # main.pack(side="top", fill="both", expand=True)
-    # print(main.winfo_width())
-    
-    left = PendingTaskFrame(root, root.winfo_height())
-    left.grid(column=0,row=0, sticky="nsew")
-
-    right = AddTaskFrame(root, root.winfo_height(), root.winfo_width(), left, clie)
-    right.grid(column=1,row=0, sticky="nsew")
-
-    listenForTasks = threading.Thread(target=left.listenForCompletedTask)
-    listenForTasks.start()
-  
-    
-    # print(left.winfo_width())
-    # print(root.winfo_width())
-    # print(root.winfo_height())
-    root.mainloop()
 
 def updateJobs(left):
     left.searchForJobs()
 
-def conectToServer():
-    clie.startConection()
-def sendFiles():
-    CNC_PC_NAME = 'DS3tin'
-    
-    print(socket.gethostbyname(CNC_PC_NAME))
-    CNC_PC_PORT = 4444
-    SEPARATOR = "<SEPARATOR>"
-    BUFFER_SIZE = 4096
 
-    while True:
-        print('strat sening')
-        time.sleep(2)
-        print('sfdj sengind')
     
 if __name__ == "__main__":
-    main = threading.Thread(target=initRoot)
-    main.start()
-    # Process(target=initRoot).start()
-    # Process(target=sendFiles).start()
-    # Process(target=conectToServer).start()
+
+    ### defining main window ###
+    root = tk.Tk()
+    root['background'] = "#393E46"
+    root.geometry("1366x769")
+    root.update_idletasks()
+    root.title("UnimetApp")
+    root.resizable(False,False)
+
+    ### defining pending side frame
+    pendingTask = PendingTaskFrame(root, root.winfo_height())
+    pendingTask.grid(column=0,row=0, sticky="nsew")
+
+    ### defining add task side frame
+    addTask = AddTaskFrame(root, root.winfo_height(), root.winfo_width(), pendingTask)
+    addTask.grid(column=1,row=0, sticky="nsew")
+
+    ### p2p handler ###
+    p2phandler = NetworkHandler(pendingTask, addTask)
+    server = threading.Thread(target=p2phandler.listenForCompletedTask) 
+    root.mainloop()
+    

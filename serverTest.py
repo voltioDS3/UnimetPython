@@ -37,19 +37,17 @@ class ServerSocketHandler():
 
     def __init__(self, leftFrame):
         self.s = socket.socket()  #server
-        # self.s2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  #client
-        # self.leftFrame = leftFrame
-        # self.s.bind((self.SERVER_HOST, self.SERVER_PORT))
+     
         self.leftFrame = leftFrame
 
     def listenForFiles(self):
         
-        # print(f'[+] Listening on port {self.SERVER_PORT}')
+       
         while True:
             self.s = socket.socket()
             self.s.bind((self.SERVER_HOST, self.SERVER_PORT))
             self.s.listen(5)
-            # self.s.listen(5)
+            
            
             print('restar loop')
             client_socket, addres = self.s.accept()
@@ -119,7 +117,7 @@ class PendingTaskFrame(tk.Frame):
             if previous_files != new_files:
                 print('[+] Draws folder was updated')
                 previous_files = new_files
-                # self.searchForJobs()
+                
             print('[+] Starting new iterations')
             time.sleep(3)
             
@@ -134,12 +132,12 @@ class PendingTaskFrame(tk.Frame):
                 child.destroy()
                 print('destroying Children')
         for file in pendinFiles:
-            # print(self.winfo_width)
+            
             container = Frame(self.scrollFrame, width=300, background= '#243763', height=300)
             container.grid_propagate(0)
             container.grid_rowconfigure(0, weight=0)
             container.grid_columnconfigure(0, weight=0)
-            # container.grid(column=initialColumn, row=initialRow, sticky='news', pady=10, padx=10)
+           
             
             f = open(file)
             data = json.load(f)
@@ -171,7 +169,7 @@ class PendingTaskFrame(tk.Frame):
             f = open(file)
             data = json.load(f)
 
-        # print(self.references[1].winfo_children()[2].cget('text').split(':')[1]) 
+        
         self.sortJobs()
         
    
@@ -179,16 +177,14 @@ class PendingTaskFrame(tk.Frame):
     def sortJobs(self):
         self. referencesToPass =[]
         self.references.sort(key= lambda x: datetime.datetime.strptime(x.winfo_children()[2].cget('text').split(':')[1], '%d/%m/%y'))
-        # print(f'IMPORTANTE {self.references}')
+        
         initialRow = 0
         initialColumn = 0
        
         for job in self.references:
             currentDate = job.winfo_children()[2].cget('text').split(':')[1]
             job.grid(column=initialColumn, row=initialRow, sticky='news', pady=10, padx=10)
-            
-            # job.winfo_children()[4].configure(command= lambda: self.right.displayTask(self, name, desc, date,file))
-            #job.winfo_children()[taskCount].bind("<Button-1>", lambda x: self.right.displayTask(self, *self.referencesToPass[taskCount]))
+         
             
             if initialColumn <= 1:
                 initialColumn += 1
@@ -196,7 +192,7 @@ class PendingTaskFrame(tk.Frame):
                 initialRow += 1
                 initialColumn = 0
 
-            # print(currentDate)
+            
 
 def doNothing():
     print('doingNothing')
@@ -300,14 +296,16 @@ class viewTaskFrame(tk.Frame):
                 jsonName = self.nameLabel.cget('text') + '.json'
                 print(jsonName)
                 filename = self.file.cget('text')
-                sendCompletedFiles = threading.Thread(target=self.sendCompletedTaskSignal, args=(jsonName, filename,))
-                sendCompletedFiles.start()
+                self.sendCompletedTaskSignal(jsonName,filename)
+                # sendCompletedFiles = threading.Thread(target=self.sendCompletedTaskSignal, args=(jsonName, filename,))
+                # sendCompletedFiles.start()
             
             else:
                 jsonName = self.nameLabel.cget('text') + '.json'
                 print(jsonName)
-                sendCompletedFiles = threading.Thread(target=self.sendCompletedTaskSignal, args=(jsonName,))
-                sendCompletedFiles.start()
+                self.sendCompletedTaskSignal(jsonName)
+                # sendCompletedFiles = threading.Thread(target=self.sendCompletedTaskSignal, args=(jsonName,))
+                # sendCompletedFiles.start()
                 
 
             print('[+] done transfering file')
@@ -358,92 +356,36 @@ class viewTaskFrame(tk.Frame):
         else:
             self.file.configure(text=file, command= lambda: subprocess.run([FILEBROWSER_PATH, '/select,', fileDirection]))
         self.file.grid(column=0,row=7, sticky='w', padx=10)
-        # self.file.grid(column=0,row=7, sticky='w', padx=10)
-        # pendingFrame.searchForJobs()
-        # print(name)
-
-# server = ServerSocketHandler()
-def initRoot():
-    root = tk.Tk()
-    root['background'] = "#393E46"
-    root.geometry("1366x769")
-    root.update_idletasks()
-    # root.grid_rowconfigure(0, weight=1)
-    # root.columnconfigure(0, weight=1)
-    root.title("UnimetApp")
-    root.resizable(False,False)
-    # main = MainApplication(root,  background= '#393E46')
-    
-    # main.pack(side="top", fill="both", expand=True)
-    # print(main.winfo_width())
-    right = viewTaskFrame(root, root.winfo_height(), root.winfo_width())
-    left = PendingTaskFrame(root, root.winfo_height(), right)
-    left.grid(column=0,row=0, sticky="nsew")
-    server = ServerSocketHandler(left)
-    serverLooop = threading.Thread(target=server.listenForFiles)
-    serverLooop.start()
-    # server = ServerSocketHandler(left)
-    # Process(target=server.listenForFiles).start()
-    
-    #\right = AddTaskFrame(root, root.winfo_height(), root.winfo_width(), left, server)
-    right.grid(column=1,row=0, sticky="nsew")
-
-    
-    # p = multiprocessing.Process(target=detectChanges, args=[left])
-    # p.start()
-    # print(left.winfo_width())
-    # print(root.winfo_width())
-    # print(root.winfo_height())
-    # Process(target=left.checkFolders).start()
-    # Process(root.mainloop()).start()
-    
-
-    root.mainloop() 
-
-def updateJobs(left):
-    left.searchForJobs()
+      
 
 
-            
+
+
             
       
 if __name__ == "__main__":
-    # main = threading.Thread(target=initRoot) 
-    # main.start()
-
+    ### defining main window ###
     root = tk.Tk()
     root['background'] = "#393E46"
     root.geometry("1366x769")
     root.update_idletasks()
-    # root.grid_rowconfigure(0, weight=1)
-    # root.columnconfigure(0, weight=1)
     root.title("UnimetApp")
     root.resizable(False,False)
-    # main = MainApplication(root,  background= '#393E46')
-    
-    # main.pack(side="top", fill="both", expand=True)
-    # print(main.winfo_width())
-    right = viewTaskFrame(root, root.winfo_height(), root.winfo_width())
-    left = PendingTaskFrame(root, root.winfo_height(), right)
-    left.grid(column=0,row=0, sticky="nsew")
-    server = ServerSocketHandler(left)
-    serverLooop = threading.Thread(target=server.listenForFiles)
-    serverLooop.start()
-    # server = ServerSocketHandler(left)
-    # Process(target=server.listenForFiles).start()
-    
-    #\right = AddTaskFrame(root, root.winfo_height(), root.winfo_width(), left, server)
-    right.grid(column=1,row=0, sticky="nsew")
+
+    ### defining add task side frame
+    viewTask = viewTaskFrame(root, root.winfo_height(), root.winfo_width())
+    viewTask.grid(column=1,row=0, sticky="nsew")
+
+    ### defining pending side frame
+    pendingTask = PendingTaskFrame(root, root.winfo_height(), viewTask)
+    pendingTask.grid(column=0,row=0, sticky="nsew")
 
     
-    # p = multiprocessing.Process(target=detectChanges, args=[left])
-    # p.start()
-    # print(left.winfo_width())
-    # print(root.winfo_width())
-    # print(root.winfo_height())
-    # Process(target=left.checkFolders).start()
-    # Process(root.mainloop()).start()
-    
+
+    server = ServerSocketHandler(pendingTask)
+    serverLooop = threading.Thread(target=server.listenForFiles)
+    serverLooop.start()
+  
     root.mainloop()
     
     
