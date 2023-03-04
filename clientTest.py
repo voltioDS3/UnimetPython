@@ -11,6 +11,7 @@ import json
 import datetime
 import multiprocessing
 from multiprocessing import Process
+import queue
 import socket
 import time
 import threading
@@ -35,36 +36,46 @@ class NetworkHandler():
     SERVER_PORT = 5555
     SEPARATOR = '<SEPARATOR>'
 
-    def  __init__(self, pendingObj, addObj):
+    def  __init__(self, q, q2):
         self.client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # socket for sending files to CNC
         self.server = socket.socket()  # socket for recieving and listening for completed tasks form CNC
-        self.pendingFrame = pendingObj
-        self.addFrame = addObj
+        self.q = q
+        self.q2 = q2
     def listenForCompletedTask(self):
         while True:
-            self.server = socket.socket()
-            self.server.bind((self.SERVER_HOST, self.SERVER_PORT))
-            self.server.listen(5)  # listening for CNC to send completed tasks
+            try:
+                self.server = socket.socket()
+                self.server.bind((self.SERVER_HOST, self.SERVER_PORT))
+                self.server.listen(5)  # listening for CNC to send completed tasks
             
-            client_socket, addres = self.server.accept()
-            print(f'[+] {addres} connected')
+                client_socket, addres = self.server.accept()
+                print(f'[+] {addres} connected')
 
-            recieved = client_socket.recv(1024).decode()
-            jsonFile , dxfFile = recieved.split(self.SEPARATOR)
+                recieved = client_socket.recv(1024).decode()
+                jsonFile , dxfFile = recieved.split(self.SEPARATOR)
 
-            newJsonFileLocation = os.path.join(os.getcwd(), "doneDraws", jsonFile)
-            jsonFileLocation = os.path.join(os.getcwd(), "draws", jsonFile)
-            os.rename(jsonFileLocation, newJsonFileLocation)
+                newJsonFileLocation = os.path.join(os.getcwd(), "doneDraws", jsonFile)
+                jsonFileLocation = os.path.join(os.getcwd(), "draws", jsonFile)
+                os.rename(jsonFileLocation, newJsonFileLocation)
 
-            if dxfFile != 'x':
-                newDxfFileLocation = os.path.join(os.getcwd(), 'doneDxf', dxfFile)
-                dxfFileLocation = os.path.join(os.getcwd(), 'dxf', dxfFile)
-                os.rename(dxfFileLocation, newDxfFileLocation)
-            print('[+] moving finished tasks')
+                if dxfFile != 'x':
+                    newDxfFileLocation = os.path.join(os.getcwd(), 'doneDxf', dxfFile)
+                    dxfFileLocation = os.path.join(os.getcwd(), 'dxf', dxfFile)
+                    os.rename(dxfFileLocation, newDxfFileLocation)
+                print('[+] moving finished tasks')
 
-            self.pendingFrame.searchForJobs()
-    
-    def sendTasks(self, jsonFile, dxfFile = 'x'):
+                self.q2.put('True')
+                #########################################################################
+                # NEED TO IMPLEMENT QUEUE TO PASS TKINTER OBJECT A SIGNAL TO REFRESH FILES
+                #########################################################################
+            except socket.error:
+                print('[!] Error with socket, either CNC_PC could not mantain conection files or conection could not happen')
+                ################################################################
+                # NEED TO DO SOMETHING TO HANDLE AN ERROR WHEN TRANSFERING FILES
+                ################################################################
+    def sendTasks(self):
+        jsonFile, dxfFile = self.q.get() 
+        print(f' queue retrived file: {jsonFile}')
         filesList = [jsonFile,dxfFile]
         print(filesList)
         for file in filesList:
@@ -73,39 +84,47 @@ class NetworkHandler():
             try:
                 self.client.connect((socket.gethostbyname(self.CNC_PC_NAME), self.CNC_PC_PORT))           
                 print(f"[+] Conected to {socket.gethostbyname(self.CNC_PC_NAME)}")
-            except Exception:
+            except socket.error:
                 print("[!] Could not connect to CNC_PC")
 
-            filesize = os.path.getsize(file)
-            self.client.send(f"{file}{self.SEPARATOR}{filesize}".encode())
-            with open(file, 'rb') as f:
-                while True:
-                    bytes_read = f.read(self.BUFFER_SIZE)
-                    if not bytes_read:
-                        break  
-                    self.client.sendall(bytes_read)
-                print(f'[+] Done sending {file}')
+            try:
+                filesize = os.path.getsize(file)
+                self.client.send(f"{file}{self.SEPARATOR}{filesize}".encode())
+                with open(file, 'rb') as f:
+                    while True:
+                        bytes_read = f.read(self.BUFFER_SIZE)
+                        if not bytes_read:
+                            break  
+                        self.client.sendall(bytes_read)
+                    print(f'[+] Done sending {file}')
+                    
                 
-            print('[!] Trying to send another file')
-            
-            self.client.close()
-            time.sleep(0.5)
-            self.client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            print('[+] Conection ended')
+                
+                self.client.close()
+                time.sleep(0.5)
+                self.client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                print('[+] Conection ended')
+            except socket.error:
+                print('[!] Socket could not send files or file')
 
+            print('[!] Trying to send another file')
+        
+        # self.q.clear()
+                ##################################
+                #NEED TO DO SOME TYPE OF FILES THAT WHERE NOT SEND AND SEND THEM WHEN CNC PC IS AVAILABLE
+                ##################################
 
 
 class PendingTaskFrame(tk.Frame):
-    SERVER_HOST = "0.0.0.0"
-    SERVER_PORT = 5555
-    SEPARATOR = '<SEPARATOR>'
-    def __init__(self, parent, parent_height):
+   
+    def __init__(self, parent, parent_height, q2):
         tk.Frame.__init__(self, parent, width=1000,height=parent_height, background= '#393E46')
-        self.recieverSocket = socket.socket()
+        
+        self.q2 = q2
         self.grid_propagate(0)
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(0, weight=1)
-
+        
         self.canvas = tk.Canvas(self, background="#393E46")
         self.verticalScrollbar = Scrollbar(self, orient='vertical', command=self.canvas.yview)
         self.scrollFrame = tk.Frame(self.canvas, background="#393E46")
@@ -123,10 +142,19 @@ class PendingTaskFrame(tk.Frame):
         self.verticalScrollbar.grid(row=0,column=1, sticky="nsew")
         self.searchForJobs()
 
-    
+        checkLoop = threading.Thread(target=self.chechCompletedTasks)
+        checkLoop.start()
     def _on_mousewheel(self, event):
         self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
 
+    def chechCompletedTasks(self):
+        while True:
+            print('[+] pending detected change')
+            result =self.q2.get(block=True)
+            print('[+] RECIEVED')
+            if result == 'True':
+                self.searchForJobs()
+                
     def searchForJobs(self):
         self.references = []
         
@@ -191,17 +219,16 @@ class PendingTaskFrame(tk.Frame):
 
 
 class AddTaskFrame(tk.Frame):
-    ### CONSTANTS AS A CLIENT ###
-    CNC_PC_NAME = 'DS3tin'  # the cnc pc that is far away
-    CNC_PC_PORT = 4444  # port for conecting and sending
-    SEPARATOR = "<SEPARATOR>"
-    BUFFER_SIZE = 4096
-    def __init__(self, parent, parent_height, parent_width, left_frame):
+   
+    def __init__(self, parent, parent_height, parent_width, left_frame, queue, p2phandler):
         tk.Frame.__init__(self, parent, width=366, height=parent_height, background= '#1F8A70')
         self.left = left_frame
         self.grid_propagate(0)
+
+        ### MULTIPROCESING VARIABLES DECLARATION ###
+        self.q = queue
+        self.p2phadler = p2phandler
         
-        self.client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         ###  form variables ###
         self.dxfFileName = 'x'
         self.jobName = 'x'
@@ -237,7 +264,7 @@ class AddTaskFrame(tk.Frame):
         self.closeFile.grid(column=0, row=8)
 
         ###  Submit Button section ###
-        self.submitButton = Button(self, text='Subir Trabajo', font=('Roboto Bold',12), width=20, height=2, command= lambda:self.getFormEntries())
+        self.submitButton = Button(self, text='Subir Trabajo', font=('Roboto Bold',12), width=20, height=2, command= lambda: threading.Thread(target = self.getFormEntries).start())
         self.submitButton.grid(column=0,row=11, pady=10)
 
     def removeDxf(self):
@@ -263,6 +290,7 @@ class AddTaskFrame(tk.Frame):
             self.dxfButtonLabel.grid(column=0, row=10)
 
     def getFormEntries(self):
+        
         dataDictionary = {"jobName" : "x",
         "descripcion" : "x",
         "date" : "x",
@@ -289,12 +317,18 @@ class AddTaskFrame(tk.Frame):
 
             print('[+] File created succesfuly')
         
-        ### SEND FILE VIA FTP ###
+        ### SEND FILE VIA FTP ##############################################
+        
         jsonfile = f'./draws/{dataDictionary["jobName"]}.json'
+
+        self.q.put((jsonfile,dataDictionary["file"]))
+        sendingThread = threading.Thread(target=self.p2phadler.sendTasks)
+        sendingThread.start()
+        sendingThread.join()
         # sendFiles = threading.Thread(target=self.clientSocket.sendTasks(jsonfile,dataDictionary["file"]))
-        self.sendTasks(jsonfile,dataDictionary["file"])
+        # self.sendTasks(jsonfile,dataDictionary["file"])
         # sendFiles.start()
-      
+        ### SEND FILE VIA FTP ##############################################
         print(f'[+] json: {dataDictionary}')
         ##### TESTING AREA UNCOMENT IF BAD
         # updateJobs(self.left)
@@ -304,34 +338,7 @@ class AddTaskFrame(tk.Frame):
         ### end of testing area
         dataDictionary = dict.fromkeys(dataDictionary, 0)
 
-    def sendTasks(self, jsonFile, dxfFile = 'x'):
-        filesList = [jsonFile,dxfFile]
-        print(filesList)
-        for file in filesList:
-            if file == 'x':
-                break
-            try:
-                self.client.connect((socket.gethostbyname(self.CNC_PC_NAME), self.CNC_PC_PORT))           
-                print(f"[+] Conected to {socket.gethostbyname(self.CNC_PC_NAME)}")
-            except Exception:
-                print("[!] Could not connect to CNC_PC")
-
-            filesize = os.path.getsize(file)
-            self.client.send(f"{file}{self.SEPARATOR}{filesize}".encode())
-            with open(file, 'rb') as f:
-                while True:
-                    bytes_read = f.read(self.BUFFER_SIZE)
-                    if not bytes_read:
-                        break  
-                    self.client.sendall(bytes_read)
-                print(f'[+] Done sending {file}')
-                
-            print('[!] Trying to send another file')
-            
-            self.client.close()
-            time.sleep(0.5)
-            self.client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            print('[+] Conection ended')
+    
 
 
 
@@ -341,7 +348,9 @@ def updateJobs(left):
 
     
 if __name__ == "__main__":
-
+    ### defining queue for comunications between threads ###
+    q = queue.Queue()  # queue for sending task
+    q2 = queue.Queue()  # queue for listening files
     ### defining main window ###
     root = tk.Tk()
     root['background'] = "#393E46"
@@ -349,17 +358,18 @@ if __name__ == "__main__":
     root.update_idletasks()
     root.title("UnimetApp")
     root.resizable(False,False)
-
+    p2phandler = NetworkHandler(q, q2)
     ### defining pending side frame
-    pendingTask = PendingTaskFrame(root, root.winfo_height())
+    pendingTask = PendingTaskFrame(root, root.winfo_height(), q2=q2)
     pendingTask.grid(column=0,row=0, sticky="nsew")
 
     ### defining add task side frame
-    addTask = AddTaskFrame(root, root.winfo_height(), root.winfo_width(), pendingTask)
+    addTask = AddTaskFrame(root, root.winfo_height(), root.winfo_width(), pendingTask, q, p2phandler)
     addTask.grid(column=1,row=0, sticky="nsew")
 
     ### p2p handler ###
-    p2phandler = NetworkHandler(pendingTask, addTask)
+    
     server = threading.Thread(target=p2phandler.listenForCompletedTask) 
+    server.start()
     root.mainloop()
     

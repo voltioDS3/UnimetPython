@@ -13,6 +13,7 @@ import json
 import datetime
 import multiprocessing
 from multiprocessing import Process
+import queue
 import socket
 import time
 import threading
@@ -27,18 +28,34 @@ pyglet.font.add_file('./fonts/Roboto-Regular.ttf')
 
 
 FILEBROWSER_PATH = os.path.join(os.getenv('WINDIR'), 'explorer.exe')
-class ServerSocketHandler():
+class NetworkHandler():
+    # SERVER_HOST = "0.0.0.0"
+    # SERVER_PORT = 4444
+    # SEPARATOR = '<SEPARATOR>'
+    # BUFFER_SIZE = 4096
+    # PC_OFICINA = 'alreadydead'
+    # CLIENT_PORT = 5555
+
+    ### CONSTANTS AS A CLIENT ###
+    PC_OFICINA = 'alreadydead'  # the pc in the ofice
+    CLIENT_PORT = 5555 # port for conecting and sending completed tasks
+    SEPARATOR = "<SEPARATOR>"
+    BUFFER_SIZE = 4096
+
+    ### CONSTANTS AS A SERVER ###
     SERVER_HOST = "0.0.0.0"
     SERVER_PORT = 4444
     SEPARATOR = '<SEPARATOR>'
-    BUFFER_SIZE = 4096
-    PC_OFICINA = 'alreadydead'
-    CLIENT_PORT = 5555
 
-    def __init__(self, leftFrame):
-        self.s = socket.socket()  #server
-     
-        self.leftFrame = leftFrame
+    def __init__(self, q, q2):
+        
+
+        
+
+        self.client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # socket for sending files to CNC
+        self.server = socket.socket()  # socket for recieving and listening for completed tasks form CNC
+        self.q = q
+        self.q2 = q2
 
     def listenForFiles(self):
         
@@ -74,16 +91,37 @@ class ServerSocketHandler():
 
                     f.write(bytes_read)
                 print(f'[+] Done recieving {filename}')
+            
+            self.q2.put('True')
             client_socket.close()
             self.s.close()
-            self.leftFrame.searchForJobs()
+            
             time.sleep(0.3)
+    
+    def sendCompletedTask(self):
+        print('[+] fucking snding files')
+        jsonTask, dxfFile = self.q.get()
+        try:
+            
+            self.client.connect((socket.gethostbyname(self.PC_OFICINA), self.CLIENT_PORT))            
+            print(f"[+] Conected to {socket.gethostbyname(self.PC_OFICINA)}")
+        except Exception:
+            print("[!] Could not connect to CNC_PC")
+
+        
+        self.client.send(f'{jsonTask}{self.SEPARATOR}{dxfFile}'.encode())
+
+        self.client.close()
+        time.sleep(0.5)
+        self.client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        print('[+] done sending signal , conection ended')
             
 
 class PendingTaskFrame(tk.Frame):
 
-    def __init__(self, parent, parent_height, rightFrame):
+    def __init__(self, parent, parent_height, rightFrame, q2):
         tk.Frame.__init__(self, parent, width=1000,height=parent_height, background= '#393E46')
+        self.q2 = q2
         self.right = rightFrame
         self.grid_propagate(0)
         self.grid_rowconfigure(0, weight=1)
@@ -106,20 +144,20 @@ class PendingTaskFrame(tk.Frame):
         self.verticalScrollbar.grid(row=0,column=1, sticky="nsew")
         self.searchForJobs()
 
+        checkLoop = threading.Thread(target=self.checkNewTasks)
+        checkLoop.start()
+        
     def _on_mousewheel(self, event):
         self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
 
-    def checkFolders(self):
-        print('[+] check folder initiated')
-        previous_files = [f for f in listdir('./draws') if isfile(join('./draws', f))]
+    def checkNewTasks(self):
         while True:
-            new_files = [f for f in listdir('./draws') if isfile(join('./draws', f))]
-            if previous_files != new_files:
-                print('[+] Draws folder was updated')
-                previous_files = new_files
-                
-            print('[+] Starting new iterations')
-            time.sleep(3)
+            print('[+] pending detected change')
+            result =self.q2.get(block=True)
+            print('[+] RECIEVED')
+            if result == 'True':
+                self.searchForJobs()
+
             
     def searchForJobs(self):
         
@@ -198,13 +236,11 @@ def doNothing():
     print('doingNothing')
 
 class viewTaskFrame(tk.Frame):
-    SEPARATOR = '<SEPARATOR>'
-    PC_OFICINA = 'alreadydead'
-    CLIENT_PORT = 5555
-    def __init__(self,  parent, parent_height, parent_width):
+    
+    def __init__(self,  parent, parent_height, parent_width, q, p2phandler):
         tk.Frame.__init__(self, parent, width=366, height=parent_height, background= '#1F8A70')
-
-        self.senderSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.q = q
+        self.p2phandler = p2phandler
         self.confirmation = None
         self.parent = parent
         self.grid_propagate(0)
@@ -296,14 +332,23 @@ class viewTaskFrame(tk.Frame):
                 jsonName = self.nameLabel.cget('text') + '.json'
                 print(jsonName)
                 filename = self.file.cget('text')
+
+                self.q.put((jsonName,filename))
                 self.sendCompletedTaskSignal(jsonName,filename)
+                sendingCompleteThread = threading.Thread(target=self.p2phandler.sendCompletedTask)
+                sendingCompleteThread.start()
+                sendingCompleteThread.join()
                 # sendCompletedFiles = threading.Thread(target=self.sendCompletedTaskSignal, args=(jsonName, filename,))
                 # sendCompletedFiles.start()
             
             else:
                 jsonName = self.nameLabel.cget('text') + '.json'
                 print(jsonName)
-                self.sendCompletedTaskSignal(jsonName)
+                # self.sendCompletedTaskSignal(jsonName)
+                self.q.put((jsonName, 'x'))
+                sendingCompleteThread = threading.Thread(target=self.p2phandler.sendCompletedTask)
+                sendingCompleteThread.start()
+                sendingCompleteThread.join()
                 # sendCompletedFiles = threading.Thread(target=self.sendCompletedTaskSignal, args=(jsonName,))
                 # sendCompletedFiles.start()
                 
@@ -364,6 +409,10 @@ class viewTaskFrame(tk.Frame):
             
       
 if __name__ == "__main__":
+    ### defining queue for comunications between threads ###
+    q = queue.Queue()  # queue for sending completed tasks
+    q2 = queue.Queue()  # queue for listening to new tasks
+    p2phandler = NetworkHandler(q, q2)
     ### defining main window ###
     root = tk.Tk()
     root['background'] = "#393E46"
@@ -373,18 +422,18 @@ if __name__ == "__main__":
     root.resizable(False,False)
 
     ### defining add task side frame
-    viewTask = viewTaskFrame(root, root.winfo_height(), root.winfo_width())
+    viewTask = viewTaskFrame(root, root.winfo_height(), root.winfo_width(),q, p2phandler)
     viewTask.grid(column=1,row=0, sticky="nsew")
 
     ### defining pending side frame
-    pendingTask = PendingTaskFrame(root, root.winfo_height(), viewTask)
+    pendingTask = PendingTaskFrame(root, root.winfo_height(), viewTask, q2=q2)
     pendingTask.grid(column=0,row=0, sticky="nsew")
 
     
 
-    server = ServerSocketHandler(pendingTask)
-    serverLooop = threading.Thread(target=server.listenForFiles)
-    serverLooop.start()
+    
+    server = threading.Thread(target=p2phandler.listenForFiles) 
+    server.start()
   
     root.mainloop()
     
