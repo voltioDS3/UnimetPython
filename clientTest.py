@@ -371,5 +371,6 @@ if __name__ == "__main__":
     
     server = threading.Thread(target=p2phandler.listenForCompletedTask) 
     server.start()
+    print(threading.enumerate())
     root.mainloop()
     

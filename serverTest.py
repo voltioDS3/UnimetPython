@@ -56,7 +56,8 @@ class NetworkHandler():
         self.server = socket.socket()  # socket for recieving and listening for completed tasks form CNC
         self.q = q
         self.q2 = q2
-
+        sendingThread = threading.Thread(target=self.sendCompletedTask)
+        sendingThread.start()
     def listenForFiles(self):
         
        
@@ -100,21 +101,22 @@ class NetworkHandler():
     
     def sendCompletedTask(self):
         print('[+] fucking snding files')
-        jsonTask, dxfFile = self.q.get()
-        try:
+        while True:
+            jsonTask, dxfFile = self.q.get()
+            try:
+                
+                self.client.connect((socket.gethostbyname(self.PC_OFICINA), self.CLIENT_PORT))            
+                print(f"[+] Conected to {socket.gethostbyname(self.PC_OFICINA)}")
+            except Exception:
+                print("[!] Could not connect to CNC_PC")
+
             
-            self.client.connect((socket.gethostbyname(self.PC_OFICINA), self.CLIENT_PORT))            
-            print(f"[+] Conected to {socket.gethostbyname(self.PC_OFICINA)}")
-        except Exception:
-            print("[!] Could not connect to CNC_PC")
+            self.client.send(f'{jsonTask}{self.SEPARATOR}{dxfFile}'.encode())
 
-        
-        self.client.send(f'{jsonTask}{self.SEPARATOR}{dxfFile}'.encode())
-
-        self.client.close()
-        time.sleep(0.5)
-        self.client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        print('[+] done sending signal , conection ended')
+            self.client.close()
+            time.sleep(0.5)
+            self.client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            print('[+] done sending signal , conection ended')
             
 
 class PendingTaskFrame(tk.Frame):
@@ -237,10 +239,10 @@ def doNothing():
 
 class viewTaskFrame(tk.Frame):
     
-    def __init__(self,  parent, parent_height, parent_width, q, p2phandler):
+    def __init__(self,  parent, parent_height, parent_width, q):
         tk.Frame.__init__(self, parent, width=366, height=parent_height, background= '#1F8A70')
         self.q = q
-        self.p2phandler = p2phandler
+       
         self.confirmation = None
         self.parent = parent
         self.grid_propagate(0)
@@ -334,10 +336,15 @@ class viewTaskFrame(tk.Frame):
                 filename = self.file.cget('text')
 
                 self.q.put((jsonName,filename))
-                self.sendCompletedTaskSignal(jsonName,filename)
-                sendingCompleteThread = threading.Thread(target=self.p2phandler.sendCompletedTask)
-                sendingCompleteThread.start()
-                sendingCompleteThread.join()
+                
+
+
+                ##### HERE IS THE ERROR ########################################################
+                # sendingCompleteThread = threading.Thread(target=self.p2phandler.sendCompletedTask) 
+                ################################################################################ 
+                # INTERACTING THREADS DIRECTILY WITH TKINTER LEADS TO ERRROR 
+                # sendingCompleteThread.start()
+                # sendingCompleteThread.join()
                 # sendCompletedFiles = threading.Thread(target=self.sendCompletedTaskSignal, args=(jsonName, filename,))
                 # sendCompletedFiles.start()
             
@@ -346,9 +353,9 @@ class viewTaskFrame(tk.Frame):
                 print(jsonName)
                 # self.sendCompletedTaskSignal(jsonName)
                 self.q.put((jsonName, 'x'))
-                sendingCompleteThread = threading.Thread(target=self.p2phandler.sendCompletedTask)
-                sendingCompleteThread.start()
-                sendingCompleteThread.join()
+                # sendingCompleteThread = threading.Thread(target=self.p2phandler.sendCompletedTask)
+                # sendingCompleteThread.start()
+                # sendingCompleteThread.join()
                 # sendCompletedFiles = threading.Thread(target=self.sendCompletedTaskSignal, args=(jsonName,))
                 # sendCompletedFiles.start()
                 
@@ -422,7 +429,7 @@ if __name__ == "__main__":
     root.resizable(False,False)
 
     ### defining add task side frame
-    viewTask = viewTaskFrame(root, root.winfo_height(), root.winfo_width(),q, p2phandler)
+    viewTask = viewTaskFrame(root, root.winfo_height(), root.winfo_width(),q)
     viewTask.grid(column=1,row=0, sticky="nsew")
 
     ### defining pending side frame
@@ -434,7 +441,7 @@ if __name__ == "__main__":
     
     server = threading.Thread(target=p2phandler.listenForFiles) 
     server.start()
-  
+    print(threading.enumerate())
     root.mainloop()
     
     
