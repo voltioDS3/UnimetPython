@@ -121,9 +121,10 @@ class NetworkHandler():
 
 class PendingTaskFrame(tk.Frame):
 
-    def __init__(self, parent, parent_height, rightFrame, q2):
+    def __init__(self, parent, parent_height, rightFrame, q2, q3):
         tk.Frame.__init__(self, parent, width=1000,height=parent_height, background= '#393E46')
         self.q2 = q2
+        self.q3 = q3
         self.right = rightFrame
         self.grid_propagate(0)
         self.grid_rowconfigure(0, weight=1)
@@ -202,8 +203,20 @@ class PendingTaskFrame(tk.Frame):
                 initialRow += 1
                 initialColumn = 0
             
+    #         infoButton = Button(container, text='Detalles', font=('Roboto Bold',12), width=20, height=2, command=partial(
+    # self.right.displayTask, self, container))
+            
+
+            name = container.winfo_children()[0].cget('text')
+            desc = container.winfo_children()[1].cget('text')[2:]  # decription of job
+            date = container.winfo_children()[2].cget('text')[2:]  # date
+            fileToSend = container.winfo_children()[3].cget('text')[2:]
+            queueInformation = [name,desc,date,fileToSend]
+
             infoButton = Button(container, text='Detalles', font=('Roboto Bold',12), width=20, height=2, command=partial(
-    self.right.displayTask, self, container))
+                self.q3.put(queueInformation)
+            ))
+            
             infoButton.grid(column=0,row=4)
             self.references.append(container)
             f = open(file)
@@ -239,10 +252,10 @@ def doNothing():
 
 class viewTaskFrame(tk.Frame):
     
-    def __init__(self,  parent, parent_height, parent_width, q):
+    def __init__(self,  parent, parent_height, parent_width, q, q3):
         tk.Frame.__init__(self, parent, width=366, height=parent_height, background= '#1F8A70')
         self.q = q
-       
+        self.q3 = q3
         self.confirmation = None
         self.parent = parent
         self.grid_propagate(0)
@@ -376,7 +389,7 @@ class viewTaskFrame(tk.Frame):
             self.file.configure(text=' ', command= lambda: doNothing())
         
             self.file.grid(column=0,row=7, sticky='w', padx=10)
-            self.pendingFrame.searchForJobs()
+            
 
 
         elif self.confirmation == False:
@@ -384,30 +397,32 @@ class viewTaskFrame(tk.Frame):
         
         self.confirmation = None
         pass
-    def displayTask(self,pendingFrame, container):
-        self.pendingFrame = pendingFrame
-        name = container.winfo_children()[0].cget('text')
-        desc = container.winfo_children()[1].cget('text')[2:]  # decription of job
-        date = container.winfo_children()[2].cget('text')[2:]  # date
-        file = container.winfo_children()[3].cget('text')[2:] 
-        
-        self.nameLabel.configure(text=name)
-        # self.nameLabel.grid(column=0,row=1, sticky='w', padx=10)
+    def displayTask(self):
+        while True:
+            listToGet = self.q3.get()
 
-        self.description.configure(text=desc)
-        # self.description.grid(column=0,row=3, sticky='w', padx=10)
-        
-        self.date.configure(text=date)
-        # self.date.grid(column=0,row=5, sticky='w', padx=10)
-        
-        fileDirection = os.path.join(os.getcwd(), "dxf", file)
-        fileDirection = os.path.normpath(fileDirection)
-        print(fileDirection)
-        if file == "No archivo":
-            self.file.configure(text='No archivo', command= lambda: doNothing())
-        else:
-            self.file.configure(text=file, command= lambda: subprocess.run([FILEBROWSER_PATH, '/select,', fileDirection]))
-        self.file.grid(column=0,row=7, sticky='w', padx=10)
+            name = listToGet[0]
+            desc = listToGet[1]  # decription of job
+            date = listToGet[2]  # date
+            file = listToGet[3]
+            
+            self.nameLabel.configure(text=name)
+            # self.nameLabel.grid(column=0,row=1, sticky='w', padx=10)
+
+            self.description.configure(text=desc)
+            # self.description.grid(column=0,row=3, sticky='w', padx=10)
+            
+            self.date.configure(text=date)
+            # self.date.grid(column=0,row=5, sticky='w', padx=10)
+            
+            fileDirection = os.path.join(os.getcwd(), "dxf", file)
+            fileDirection = os.path.normpath(fileDirection)
+            print(fileDirection)
+            if file == "No archivo":
+                self.file.configure(text='No archivo', command= lambda: doNothing())
+            else:
+                self.file.configure(text=file, command= lambda: subprocess.run([FILEBROWSER_PATH, '/select,', fileDirection]))
+            self.file.grid(column=0,row=7, sticky='w', padx=10)
       
 
 
