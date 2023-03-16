@@ -150,6 +150,8 @@ class PendingTaskFrame(tk.Frame):
         checkLoop = threading.Thread(target=self.checkNewTasks)
         checkLoop.start()
         
+        detectChanges = threading.Thread(target=self.detect_changes)
+        detectChanges.start()
     def _on_mousewheel(self, event):
         self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
 
@@ -161,7 +163,39 @@ class PendingTaskFrame(tk.Frame):
             if result == 'True':
                 self.searchForJobs()
 
+    
+    def detect_changes(self):
+        """
+        Detects if files have been added or removed from a folder.
+        folder_path: the path of the folder to monitor.
+        interval: the time interval in seconds between checks (default: 10).
+        """
+        folder_path = os.path.join(os.getcwd(), "draws")
+        interval = 5
+        # get initial list of files in folder
+        initial_files = set(os.listdir(folder_path))
+        
+        while True:
+            # wait for the specified interval
+            time.sleep(interval)
             
+            # get updated list of files in folder
+            updated_files = set(os.listdir(folder_path))
+            
+            # find added and removed files
+            added_files = updated_files - initial_files
+            removed_files = initial_files - updated_files
+            
+            # print results
+            if added_files:
+                print(f"Added files: {', '.join(added_files)}")
+                self.searchForJobs()
+            if removed_files:
+                print(f"Removed files: {', '.join(removed_files)}")
+                self.searchForJobs()
+            
+            # update initial list of files
+            initial_files = updated_files        
     def searchForJobs(self):
         
         self.references = []
@@ -214,7 +248,7 @@ class PendingTaskFrame(tk.Frame):
             queueInformation = [name,desc,date,fileToSend]
 
             infoButton = Button(container, text='Detalles', font=('Roboto Bold',12), width=20, height=2, command=partial(
-                self.q3.put(queueInformation)
+                self.q3.put, queueInformation
             ))
             
             infoButton.grid(column=0,row=4)
@@ -285,24 +319,9 @@ class viewTaskFrame(tk.Frame):
 
         self.taskDoneButton = Button(self, text='TERMINAR TRABAJO', command = lambda: self.finishJob(),background="#FF6E31", font=('Roboto',20), fg='white',wraplength=340, justify=LEFT)
         self.taskDoneButton.grid(column=0,row=9, sticky='w', padx=10, pady=10)
-    
-    def sendCompletedTaskSignal(self, jsonTask, dxfFile = 'x'):
-        print('[+] fucking snding files')
-        try:
-            
-            self.senderSocket.connect((socket.gethostbyname(self.PC_OFICINA), self.CLIENT_PORT))            
-            print(f"[+] Conected to {socket.gethostbyname(self.PC_OFICINA)}")
-        except Exception:
-            print("[!] Could not connect to CNC_PC")
-
-        
-        self.senderSocket.send(f'{jsonTask}{self.SEPARATOR}{dxfFile}'.encode())
-
-        self.senderSocket.close()
-        time.sleep(0.5)
-        self.senderSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        print('[+] done sending signal , conection ended')
-
+        displayTaskListener = threading.Thread(target=self.displayTask)
+        displayTaskListener.start()
+   
 
     def setTrue(self, window):
         self.confirmation = True
@@ -434,6 +453,7 @@ if __name__ == "__main__":
     ### defining queue for comunications between threads ###
     q = queue.Queue()  # queue for sending completed tasks
     q2 = queue.Queue()  # queue for listening to new tasks
+    q3 = queue.Queue()
     p2phandler = NetworkHandler(q, q2)
     ### defining main window ###
     root = tk.Tk()
@@ -444,11 +464,11 @@ if __name__ == "__main__":
     root.resizable(False,False)
 
     ### defining add task side frame
-    viewTask = viewTaskFrame(root, root.winfo_height(), root.winfo_width(),q)
+    viewTask = viewTaskFrame(root, root.winfo_height(), root.winfo_width(),q,q3)
     viewTask.grid(column=1,row=0, sticky="nsew")
 
     ### defining pending side frame
-    pendingTask = PendingTaskFrame(root, root.winfo_height(), viewTask, q2=q2)
+    pendingTask = PendingTaskFrame(root, root.winfo_height(), viewTask, q2=q2, q3=q3)
     pendingTask.grid(column=0,row=0, sticky="nsew")
 
     
