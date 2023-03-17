@@ -49,15 +49,15 @@ class NetworkHandler():
 
     def __init__(self, q, q2):
         
-
+        
         
 
         self.client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # socket for sending files to CNC
         self.server = socket.socket()  # socket for recieving and listening for completed tasks form CNC
         self.q = q
         self.q2 = q2
-        sendingThread = threading.Thread(target=self.sendCompletedTask)
-        sendingThread.start()
+        # sendingThread = threading.Thread(target=self.sendCompletedTask)
+        # sendingThread.start()
     def listenForFiles(self):
         
        
@@ -94,38 +94,40 @@ class NetworkHandler():
                 print(f'[+] Done recieving {filename}')
             
             self.q2.put('True')
-            client_socket.close()
-            self.s.close()
+           
+          
             
-            time.sleep(0.3)
     
     def sendCompletedTask(self):
         print('[+] fucking snding files')
-        while True:
-            jsonTask, dxfFile = self.q.get()
-            try:
-                
-                self.client.connect((socket.gethostbyname(self.PC_OFICINA), self.CLIENT_PORT))            
-                print(f"[+] Conected to {socket.gethostbyname(self.PC_OFICINA)}")
-            except Exception:
-                print("[!] Could not connect to CNC_PC")
-
+        
+        jsonTask, dxfFile = self.q.get()
+        try:
             
-            self.client.send(f'{jsonTask}{self.SEPARATOR}{dxfFile}'.encode())
+            self.client.connect((socket.gethostbyname(self.PC_OFICINA), self.CLIENT_PORT))            
+            print(f"[+] Conected to {socket.gethostbyname(self.PC_OFICINA)}")
+        except Exception:
+            print("[!] Could not connect to CNC_PC")
 
+        try:
+            self.client.send(f'{jsonTask}{self.SEPARATOR}{dxfFile}'.encode())
             self.client.close()
             time.sleep(0.5)
             self.client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             print('[+] done sending signal , conection ended')
-            
+        except socket.error:
+            print("fuck")
+        
+        
 
 class PendingTaskFrame(tk.Frame):
 
-    def __init__(self, parent, parent_height, rightFrame, q2, q3):
+    def __init__(self, parent, parent_height, q2, q3):
         tk.Frame.__init__(self, parent, width=1000,height=parent_height, background= '#393E46')
         self.q2 = q2
         self.q3 = q3
-        self.right = rightFrame
+        
+        
         self.grid_propagate(0)
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(0, weight=1)
@@ -150,8 +152,7 @@ class PendingTaskFrame(tk.Frame):
         checkLoop = threading.Thread(target=self.checkNewTasks)
         checkLoop.start()
         
-        detectChanges = threading.Thread(target=self.detect_changes)
-        detectChanges.start()
+        
     def _on_mousewheel(self, event):
         self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
 
@@ -164,55 +165,24 @@ class PendingTaskFrame(tk.Frame):
                 self.searchForJobs()
 
     
-    def detect_changes(self):
-        """
-        Detects if files have been added or removed from a folder.
-        folder_path: the path of the folder to monitor.
-        interval: the time interval in seconds between checks (default: 10).
-        """
-        folder_path = os.path.join(os.getcwd(), "draws")
-        interval = 5
-        # get initial list of files in folder
-        initial_files = set(os.listdir(folder_path))
-        
-        while True:
-            # wait for the specified interval
-            time.sleep(interval)
-            
-            # get updated list of files in folder
-            updated_files = set(os.listdir(folder_path))
-            
-            # find added and removed files
-            added_files = updated_files - initial_files
-            removed_files = initial_files - updated_files
-            
-            # print results
-            if added_files:
-                print(f"Added files: {', '.join(added_files)}")
-                self.searchForJobs()
-            if removed_files:
-                print(f"Removed files: {', '.join(removed_files)}")
-                self.searchForJobs()
-            
-            # update initial list of files
-            initial_files = updated_files        
+         
     def searchForJobs(self):
-        
         self.references = []
         
         pendinFiles = os.scandir('./draws')
         initialRow = 0
         initialColumn = 0
+
         for child in self.scrollFrame.winfo_children():
-                child.destroy()
-                print('destroying Children')
+            child.destroy()
+            print('[+] destroying children')
         for file in pendinFiles:
             
             container = Frame(self.scrollFrame, width=300, background= '#243763', height=300)
             container.grid_propagate(0)
             container.grid_rowconfigure(0, weight=0)
             container.grid_columnconfigure(0, weight=0)
-           
+            
             
             f = open(file)
             data = json.load(f)
@@ -237,26 +207,18 @@ class PendingTaskFrame(tk.Frame):
                 initialRow += 1
                 initialColumn = 0
             
-    #         infoButton = Button(container, text='Detalles', font=('Roboto Bold',12), width=20, height=2, command=partial(
-    # self.right.displayTask, self, container))
-            
-
             name = container.winfo_children()[0].cget('text')
-            desc = container.winfo_children()[1].cget('text')[2:]  # decription of job
-            date = container.winfo_children()[2].cget('text')[2:]  # date
+            desc = container.winfo_children()[1].cget('text')[2:]
+            date = container.winfo_children()[2].cget('text')[2:]
             fileToSend = container.winfo_children()[3].cget('text')[2:]
-            queueInformation = [name,desc,date,fileToSend]
+            queueInfomation = [name, desc, date,fileToSend]
 
-            infoButton = Button(container, text='Detalles', font=('Roboto Bold',12), width=20, height=2, command=partial(
-                self.q3.put, queueInformation
-            ))
-            
+            infoButton = Button(container, text = 'Detaller', font = ('Roboto Bold', 12), width=20, height=2,
+                                command=partial(self.q3.put,queueInfomation))
             infoButton.grid(column=0,row=4)
             self.references.append(container)
             f = open(file)
             data = json.load(f)
-
-        
         self.sortJobs()
         
    
@@ -286,9 +248,11 @@ def doNothing():
 
 class viewTaskFrame(tk.Frame):
     
-    def __init__(self,  parent, parent_height, parent_width, q, q3):
+    def __init__(self,  parent, parent_height, parent_width,left_frame, q, q3, p2phandler):
         tk.Frame.__init__(self, parent, width=366, height=parent_height, background= '#1F8A70')
         self.q = q
+        self.p2phandler = p2phandler
+        self.left = left_frame
         self.q3 = q3
         self.confirmation = None
         self.parent = parent
@@ -317,7 +281,7 @@ class viewTaskFrame(tk.Frame):
         self.file = Button(self, text=' ', background="#FF6E31", font=('Roboto',20), fg='white',wraplength=340, justify=LEFT)
         # self.file.grid(column=0,row=7, sticky='w', padx=10)
 
-        self.taskDoneButton = Button(self, text='TERMINAR TRABAJO', command = lambda: self.finishJob(),background="#FF6E31", font=('Roboto',20), fg='white',wraplength=340, justify=LEFT)
+        self.taskDoneButton = Button(self, text='TERMINAR TRABAJO', command = lambda: threading.Thread(target=self.finishJob).start(),background="#FF6E31", font=('Roboto',20), fg='white',wraplength=340, justify=LEFT)
         self.taskDoneButton.grid(column=0,row=9, sticky='w', padx=10, pady=10)
         displayTaskListener = threading.Thread(target=self.displayTask)
         displayTaskListener.start()
@@ -349,7 +313,11 @@ class viewTaskFrame(tk.Frame):
         cancel_button.pack(side="right", padx=50)
         popup_window.mainloop()
     def finishJob(self):
-        self.create_popup()
+        inpu = input('si')
+        if inpu == 'si':
+            self.confirmation = True
+        else:
+            self.confirmation = False
         print('hello')
         if self.confirmation == True:
             jsonFileLocation = self.nameLabel.cget('text') + '.json'
@@ -357,19 +325,38 @@ class viewTaskFrame(tk.Frame):
             jsonFileLocation = os.path.join(os.getcwd(), "draws", jsonFileLocation)
        
             print(jsonFileLocation)
-            os.rename(jsonFileLocation, newJsonFileLocation)
+            try:
+                os.rename(jsonFileLocation, newJsonFileLocation)
+            except FileExistsError:
+                print('file already exists')
+                os.remove(jsonFileLocation)
+                pass
+            print('passing')
             if self.file.cget('text') != "No archivo":
+                print('check')
                 dxfFileLocation = self.file.cget('text')
                 newDxfFileLocation = os.path.join(os.getcwd(), "doneDxf", dxfFileLocation)
                 dxfFileLocation = os.path.join(os.getcwd(), "dxf", dxfFileLocation)
-                os.rename(dxfFileLocation, newDxfFileLocation)
+                try:
+                    os.rename(dxfFileLocation, newDxfFileLocation)
+
+                except FileExistsError:
+                    print('file already exists')
+                    os.remove(dxfFileLocation)
+                    pass
+                print('passing')
+                    
                 jsonName = self.nameLabel.cget('text') + '.json'
                 print(jsonName)
                 filename = self.file.cget('text')
-
-                self.q.put((jsonName,filename))
                 
-
+                self.q.put((jsonName,filename))
+                sendingThread = threading.Thread(target=self.p2phandler.sendCompletedTask)
+                sendingThread.start()
+                sendingThread.join()
+                print("a")
+                self.left.searchForJobs()
+                print("a")
 
                 ##### HERE IS THE ERROR ########################################################
                 # sendingCompleteThread = threading.Thread(target=self.p2phandler.sendCompletedTask) 
@@ -385,6 +372,12 @@ class viewTaskFrame(tk.Frame):
                 print(jsonName)
                 # self.sendCompletedTaskSignal(jsonName)
                 self.q.put((jsonName, 'x'))
+                sendingThread = threading.Thread(target=self.p2phandler.sendCompletedTask)
+                sendingThread.start()
+                sendingThread.join()
+                print("a")
+                self.left.searchForJobs()
+                print("a")
                 # sendingCompleteThread = threading.Thread(target=self.p2phandler.sendCompletedTask)
                 # sendingCompleteThread.start()
                 # sendingCompleteThread.join()
@@ -410,7 +403,7 @@ class viewTaskFrame(tk.Frame):
             self.file.grid(column=0,row=7, sticky='w', padx=10)
             
 
-
+            self.left.searchForJobs()
         elif self.confirmation == False:
             print('[+] Confirmation denied')
         
@@ -454,6 +447,7 @@ if __name__ == "__main__":
     q = queue.Queue()  # queue for sending completed tasks
     q2 = queue.Queue()  # queue for listening to new tasks
     q3 = queue.Queue()
+    q4 = queue.Queue()
     p2phandler = NetworkHandler(q, q2)
     ### defining main window ###
     root = tk.Tk()
@@ -463,13 +457,14 @@ if __name__ == "__main__":
     root.title("UnimetApp")
     root.resizable(False,False)
 
+    ### defining pending side frame
+    pendingTask = PendingTaskFrame(root, root.winfo_height(), q2=q2, q3=q3)
+    pendingTask.grid(column=0,row=0, sticky="nsew")
     ### defining add task side frame
-    viewTask = viewTaskFrame(root, root.winfo_height(), root.winfo_width(),q,q3)
+    viewTask = viewTaskFrame(root, root.winfo_height(), root.winfo_width(), pendingTask, q,q3, p2phandler)
     viewTask.grid(column=1,row=0, sticky="nsew")
 
-    ### defining pending side frame
-    pendingTask = PendingTaskFrame(root, root.winfo_height(), viewTask, q2=q2, q3=q3)
-    pendingTask.grid(column=0,row=0, sticky="nsew")
+    
 
     
 
