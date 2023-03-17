@@ -56,12 +56,22 @@ class NetworkHandler():
 
                 newJsonFileLocation = os.path.join(os.getcwd(), "doneDraws", jsonFile)
                 jsonFileLocation = os.path.join(os.getcwd(), "draws", jsonFile)
-                os.rename(jsonFileLocation, newJsonFileLocation)
+                try:
+                    os.rename(jsonFileLocation, newJsonFileLocation)
+                except FileExistsError:
+                    print('[!] File already Existed, deliting instead')
+                    os.remove(jsonFileLocation)
+                    pass
 
                 if dxfFile != 'x':
                     newDxfFileLocation = os.path.join(os.getcwd(), 'doneDxf', dxfFile)
                     dxfFileLocation = os.path.join(os.getcwd(), 'dxf', dxfFile)
-                    os.rename(dxfFileLocation, newDxfFileLocation)
+                    try:
+                        os.rename(dxfFileLocation, newDxfFileLocation)
+                    except FileExistsError:
+                        print('[!] File already Existed, deliting instead')
+                        os.remove(dxfFileLocation)
+                        pass
                 print('[+] moving finished tasks')
 
                 self.q2.put('True')
