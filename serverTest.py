@@ -37,6 +37,9 @@ class NetworkHandler():
     # CLIENT_PORT = 5555
 
     ### CONSTANTS AS A CLIENT ###
+    with open('./hostNames.txt') as hostNamesFile:
+        for line in hostNamesFile:
+            print(line.split('"')[1])
     PC_OFICINA = 'alreadydead'  # the pc in the ofice
     CLIENT_PORT = 5555 # port for conecting and sending completed tasks
     SEPARATOR = "<SEPARATOR>"
