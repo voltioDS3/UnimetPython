@@ -24,9 +24,13 @@ pyglet.font.add_file('./fonts/Roboto-Regular.ttf')
 
 
 class NetworkHandler():
-
+    hostNames = []
+    with open('./hostNames.txt') as hostNamesFile:
+        for line in hostNamesFile:
+            hostNames.append(line.split('"')[1])
+            print(line.split('"')[1])
     ### CONSTANTS AS A CLIENT ###
-    CNC_PC_NAME = 'DS3tin'  # the cnc pc that is far away
+    CNC_PC_NAME = hostNames[1]  # the cnc pc that is far away
     CNC_PC_PORT = 4444  # port for conecting and sending
     SEPARATOR = "<SEPARATOR>"
     BUFFER_SIZE = 4096

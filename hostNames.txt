@@ -1,2 +1,2 @@
-OFFICE_PC = "OFFICE NAME"
-CNC_PC = "CNC HOSTNAME"
+OFFICE_PC = "alreadydead"
+CNC_PC = "DS3TIN	"
